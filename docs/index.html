@@ -245,6 +245,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       <summary>Kelola tablet ini</summary>
       <div class="box pad">
         <div class="lbl">Kode perangkat: <span id="mCode" style="font-family:monospace"></span></div>
+        <div class="lbl">Info teknis: <span id="diag" style="font-family:monospace;overflow-wrap:anywhere"></span></div>
         <button class="btn2 danger" id="removeBtn">Hapus tablet ini dari daftar di HP ini</button>
       </div>
     </details>
@@ -508,6 +509,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     $('npArt').style.backgroundImage = now && now.art ? 'url("' + now.art + '")' : 'none';
     $('ppIcon').innerHTML = playing ? '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>' : '<path d="M8 5v14l11-7z"/>';
     $('ppBtn').setAttribute('aria-label', playing ? 'Jeda' : 'Putar');
+    $('diag').textContent = now ? ('app ' + (now.ver || '1.0') + ' · ' + (now.src || '-') + ' dukung: ' + (now.acts || '-') + (now.spres ? ' · spotify: ' + now.spres : '')) : '-';
     if (now && typeof now.vol === 'number' && now.vol >= 0 && document.activeElement !== $('vol') && !volDragging) {
       $('vol').value = now.vol;
       $('volVal').textContent = now.vol + '%';

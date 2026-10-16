@@ -176,34 +176,108 @@ class MediaHelper {
     /**
      * Putar link di sumber. Kalau aplikasi sumber sudah aktif dan mendukung "putar dari link",
      * kirim langsung tanpa membuka ulang; kalau tidak, buka di sisi sebelah.
+     * Spotify memakai cara bertingkat karena tidak selalu menuruti perintah langsung.
      */
     String playLink(String source, String link, String spotifyUri) {
+        if ("spotify".equals(source)) return playSpotify(link, spotifyUri);
         MediaController c = pick(source);
         String pkg = pkgFor(source);
         if (c != null && pkg.equals(c.getPackageName()) && c.getPlaybackState() != null) {
             long a = c.getPlaybackState().getActions();
             try {
-                if ("spotify".equals(source) && spotifyUri != null && !spotifyUri.isEmpty()) {
-                    if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) {
-                        c.getTransportControls().playFromUri(Uri.parse(spotifyUri), new Bundle());
-                        return "ok-uri";
-                    }
-                    if ((a & PlaybackState.ACTION_PLAY_FROM_MEDIA_ID) != 0) {
-                        c.getTransportControls().playFromMediaId(spotifyUri, new Bundle());
-                        return "ok-mediaid";
-                    }
-                } else if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) {
+                if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) {
                     c.getTransportControls().playFromUri(Uri.parse(link), new Bundle());
                     return "ok-uri";
                 }
             } catch (Exception ignored) { }
         }
-        String r = openAdjacent(source, link);
-        if ("spotify".equals(source) && r.startsWith("ok")) {
-            // Spotify membuka playlist tapi belum tentu langsung memutar → tekan play setelah terbuka
-            ui.postDelayed(() -> command("spotify", "play"), 4000);
+        return openAdjacent(source, link);
+    }
+
+    private String lastSpotifyResult = "";
+
+    String lastSpotifyResult() { return lastSpotifyResult; }
+
+    private MediaController spotifySession() {
+        List<MediaController> list = sessions();
+        if (list == null) return null;
+        for (MediaController c : list) if (PKG_SPOTIFY.equals(c.getPackageName())) return c;
+        return null;
+    }
+
+    private static String titleOf(MediaController c) {
+        if (c == null || c.getMetadata() == null) return "";
+        String t = c.getMetadata().getString(MediaMetadata.METADATA_KEY_TITLE);
+        return t == null ? "" : t;
+    }
+
+    private static boolean isPlaying(MediaController c) {
+        return c != null && c.getPlaybackState() != null && c.getPlaybackState().getState() == PlaybackState.STATE_PLAYING;
+    }
+
+    /**
+     * 1) Sesi Spotify ada → playFromUri / playFromMediaId, cek 3,5 detik kemudian.
+     * 2) Gagal / tidak ada sesi → buka link playlist di sisi sebelah, lalu coba lagi playFromUri,
+     *    lalu tekan play. Hasil akhir dicatat di lastSpotifyResult.
+     */
+    private String playSpotify(final String link, final String uri) {
+        final String target = (uri != null && !uri.isEmpty()) ? uri : link;
+        final MediaController c = spotifySession();
+        final String before = titleOf(c);
+        lastSpotifyResult = "mencoba";
+        if (c != null && c.getPlaybackState() != null) {
+            long a = c.getPlaybackState().getActions();
+            boolean sent = false;
+            try {
+                if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) {
+                    c.getTransportControls().playFromUri(Uri.parse(target), new Bundle());
+                    sent = true;
+                } else if ((a & PlaybackState.ACTION_PLAY_FROM_MEDIA_ID) != 0) {
+                    c.getTransportControls().playFromMediaId(target, new Bundle());
+                    sent = true;
+                }
+            } catch (Exception ignored) { }
+            if (sent) {
+                ui.postDelayed(() -> {
+                    MediaController c2 = spotifySession();
+                    if (isPlaying(c2) && !titleOf(c2).equals(before)) {
+                        lastSpotifyResult = "ok-langsung";
+                    } else {
+                        spotifyFallback(link, target, before);
+                    }
+                }, 3500);
+                return "ok-mencoba";
+            }
         }
-        return r;
+        spotifyFallback(link, target, before);
+        return "ok-membuka";
+    }
+
+    private void spotifyFallback(String link, final String target, final String before) {
+        lastSpotifyResult = "membuka-playlist";
+        // buka playlist-nya di aplikasi Spotify (sisi sebelah kalau layar terbagi)
+        String r = openAdjacent("spotify", target.startsWith("spotify:") ? target : link);
+        if (!r.startsWith("ok")) r = openAdjacent("spotify", link);
+        ui.postDelayed(() -> {
+            MediaController c = spotifySession();
+            if (c == null) { command("spotify", "play"); lastSpotifyResult = "tombol-media"; return; }
+            if (isPlaying(c) && !titleOf(c).equals(before)) { lastSpotifyResult = "ok-buka"; return; }
+            try {
+                long a = c.getPlaybackState() != null ? c.getPlaybackState().getActions() : 0;
+                if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) c.getTransportControls().playFromUri(Uri.parse(target), new Bundle());
+                else c.getTransportControls().play();
+            } catch (Exception e) {
+                c.getTransportControls().play();
+            }
+            lastSpotifyResult = "buka+play";
+        }, 4000);
+        ui.postDelayed(() -> {
+            MediaController c = spotifySession();
+            if (c != null && !isPlaying(c)) {
+                c.getTransportControls().play();
+                lastSpotifyResult = "buka+play2";
+            }
+        }, 8000);
     }
 
     /** Info pemutar saat ini dalam bentuk JSON. */
@@ -235,7 +309,17 @@ class MediaHelper {
                     }
                     o.put("art", lastArtB64);
                 }
-                if (s != null) o.put("pos", s.getPosition());
+                if (s != null) {
+                    o.put("pos", s.getPosition());
+                    long a = s.getActions();
+                    StringBuilder sb = new StringBuilder();
+                    if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) sb.append("uri ");
+                    if ((a & PlaybackState.ACTION_PLAY_FROM_MEDIA_ID) != 0) sb.append("mediaId ");
+                    if ((a & PlaybackState.ACTION_PLAY_FROM_SEARCH) != 0) sb.append("search ");
+                    if ((a & PlaybackState.ACTION_SKIP_TO_NEXT) != 0) sb.append("next ");
+                    o.put("acts", sb.toString().trim());
+                }
+                o.put("spres", lastSpotifyResult);
             }
         } catch (Exception ignored) { }
         return o.toString();

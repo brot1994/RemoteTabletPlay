@@ -545,9 +545,10 @@
       state: info.state || 'none', title: info.title || '', artist: info.artist || '',
       dur: info.dur || 0, pos: info.pos || 0,
       access: !!info.access, split: !!info.split, vol: typeof info.vol === 'number' ? info.vol : -1,
-      tts: AND.ttsStatus ? AND.ttsStatus() : '', speaking: speakingNow
+      tts: AND.ttsStatus ? AND.ttsStatus() : '', speaking: speakingNow,
+      acts: info.acts || '', spres: info.spres || '', ver: '1.1'
     };
-    var key = [now.src, now.state, now.title, now.artist, now.access, now.split, now.vol, now.tts, now.speaking, now.playlist].join('|');
+    var key = [now.src, now.state, now.title, now.artist, now.access, now.split, now.vol, now.tts, now.speaking, now.playlist, now.acts, now.spres].join('|');
     var art = info.art || '';
     if (key === lastNowKey && art === lastArt) return;
     lastNowKey = key;
