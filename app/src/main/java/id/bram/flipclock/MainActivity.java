@@ -31,6 +31,8 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private MediaHelper media;
+    /** true selama jam terlihat di layar (dipakai layanan untuk memunculkan jam kembali). */
+    static volatile boolean visible = false;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -74,13 +76,15 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        media = new MediaHelper(this);
+        media = MediaHelper.get(this);
+        media.activity = this;
         media.setSpeakListener(speaking -> {
             if (web != null) web.evaluateJavascript("window.onSpeakState && window.onSpeakState(" + speaking + ")", null);
         });
         web.addJavascriptInterface(new Bridge(), "Android");
         setContentView(web);
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
+        RemoteService.start(this);
         hideSystemUi();
     }
 
@@ -102,14 +106,34 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        visible = true;
+        if (media != null) {
+            media.activity = this;
+            try { media.lastSplit = isInMultiWindowMode(); } catch (Exception ignored) { }
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        visible = false;
+        super.onStop();
+    }
+
+    @Override
     protected void onDestroy() {
-        if (media != null) media.shutdown();
+        if (media != null && media.activity == this) {
+            media.activity = null;
+            media.setSpeakListener(null);
+        }
         super.onDestroy();
     }
 
     @Override
     public void onMultiWindowModeChanged(boolean inMulti, Configuration newConfig) {
         super.onMultiWindowModeChanged(inMulti, newConfig);
+        if (media != null) media.lastSplit = inMulti;
         if (web != null) {
             web.onResume();
             web.evaluateJavascript("window.onSplitChange && window.onSplitChange(" + inMulti + ")", null);
@@ -207,7 +231,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "2.0";
+            return "2.3";
         }
 
         // ---------------- musik / layar terbagi / suara (versi 2)
@@ -220,12 +244,44 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean isSplit() { return isInMultiWindowMode(); }
 
+        /** Pengaturan remote untuk layanan latar belakang. */
+        @JavascriptInterface
+        public void setRemote(boolean enabled, String db, String key, String name) {
+            SharedPreferences p = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            boolean changed = p.getBoolean(RemoteService.P_ENABLED, false) != enabled
+                    || !db.equals(p.getString(RemoteService.P_DB, ""))
+                    || !key.equals(p.getString(RemoteService.P_KEY, ""))
+                    || !name.equals(p.getString(RemoteService.P_NAME, ""));
+            if (!changed) return;
+            p.edit().putBoolean(RemoteService.P_ENABLED, enabled).putString(RemoteService.P_DB, db)
+                    .putString(RemoteService.P_KEY, key).putString(RemoteService.P_NAME, name).apply();
+            RemoteService.restart(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void setKeepFront(boolean on) {
+            getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(RemoteService.P_KEEPFRONT, on).apply();
+        }
+
+        @JavascriptInterface
+        public boolean getKeepFront() {
+            return getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(RemoteService.P_KEEPFRONT, true);
+        }
+
+        @JavascriptInterface
+        public boolean isSpeaking() { return media.speaking; }
+
         @JavascriptInterface
         public boolean isInstalled(String source) { return media.installed(MediaHelper.pkgFor(source)); }
 
         @JavascriptInterface
         public String playLink(String source, String link, String spotifyUri) {
             return media.playLink(source, link, spotifyUri);
+        }
+
+        @JavascriptInterface
+        public String playSpotify(String link, String uri, String name, String method) {
+            return media.playSpotifyMethod(link, uri, name, method);
         }
 
         @JavascriptInterface

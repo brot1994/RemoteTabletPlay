@@ -180,10 +180,11 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
           <div class="lbl" id="plHead">Playlist</div>
           <div id="plList" style="display:flex;flex-direction:column;gap:8px"></div>
           <button class="btn2" id="openAppBtn">Buka aplikasi di tablet</button>
+          <button class="btn2" id="clockBtn">Munculkan jam di tablet</button>
           <details id="addPl">
             <summary>+ Tambah playlist / video</summary>
             <div class="addpl">
-              <label class="lbl" for="plName">Nama (bebas)</label>
+              <label class="lbl" for="plName">Nama (untuk Spotify: tulis sama persis dengan nama playlist di Spotify)</label>
               <input class="txt" id="plName" type="text" maxlength="40" placeholder="Contoh: Indo jadul">
               <label class="lbl" for="plLink" id="plLinkLbl">Link</label>
               <input class="txt" id="plLink" type="url" autocomplete="off">
@@ -246,6 +247,13 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       <div class="box pad">
         <div class="lbl">Kode perangkat: <span id="mCode" style="font-family:monospace"></span></div>
         <div class="lbl">Info teknis: <span id="diag" style="font-family:monospace;overflow-wrap:anywhere"></span></div>
+        <div class="lbl" style="margin-top:6px"><b>Uji cara memutar playlist Spotify</b> — memakai playlist Spotify terakhir yang Anda putar (atau yang pertama di daftar). Tekan satu per satu, tunggu ±8 detik, lihat apakah lagu pindah ke playlist itu.</div>
+        <div class="two">
+          <button class="btn2" data-sp="uri">Cara 1: perintah langsung</button>
+          <button class="btn2" data-sp="play">Cara 2: link otomatis putar</button>
+          <button class="btn2" data-sp="search">Cara 3: cari nama playlist</button>
+          <button class="btn2" data-sp="open">Cara 4: buka lalu play</button>
+        </div>
         <button class="btn2 danger" id="removeBtn">Hapus tablet ini dari daftar di HP ini</button>
       </div>
     </details>
@@ -389,6 +397,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     line(now.access ? 'ok' : 'err', now.access ? 'Kontrol musik: aktif' : 'Kontrol musik: izin belum diberikan di tablet');
     line(now.split ? 'ok' : 'warn', now.split ? 'Layar terbagi: aktif' : 'Layar terbagi: belum aktif — musik akan menutupi jam');
     line(now.tts === 'ok' ? 'ok' : 'err', now.tts === 'ok' ? 'Suara bahasa Indonesia: siap' : 'Suara bahasa Indonesia: belum terpasang di tablet');
+    if (typeof now.clock === 'boolean') line(now.clock ? 'ok' : 'warn', now.clock ? 'Jam: tampil di layar' : 'Jam: sedang tidak tampil (tertutup aplikasi lain)');
   }
 
   function refreshStatus() {
@@ -505,7 +514,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     $('npState').textContent = stateTxt + (srcName ? ' · ' + srcName.toUpperCase() : '');
     $('npState').style.color = playing ? '#13803D' : '#55555B';
     $('npTitle').textContent = now && now.title ? now.title : (now && now.speaking ? 'Sedang membacakan pengumuman…' : 'Belum ada yang diputar');
-    $('npArtist').textContent = now ? [now.artist, now.playlist ? 'Playlist: ' + now.playlist : ''].filter(Boolean).join(' · ') : '';
+    $('npArtist').textContent = now ? [now.artist, now.queue ? 'Antrean: ' + now.queue : (now.playlist ? 'Playlist: ' + now.playlist : '')].filter(Boolean).join(' · ') : '';
     $('npArt').style.backgroundImage = now && now.art ? 'url("' + now.art + '")' : 'none';
     $('ppIcon').innerHTML = playing ? '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>' : '<path d="M8 5v14l11-7z"/>';
     $('ppBtn').setAttribute('aria-label', playing ? 'Jeda' : 'Putar');
@@ -557,8 +566,11 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     });
   }
 
-  function playPl(p) {
+  var lastSpPl = null;
+  function playPl(p, method) {
     var s = SOURCES.filter(function (x) { return x.id === p.src; })[0];
+    if (p.src === 'spotify') lastSpPl = p;
+    if (method) return sendCmd({ type: 'play', src: p.src, link: p.link, name: p.name, method: method }, 'Uji cara "' + method + '" untuk "' + p.name + '"');
     sendCmd({ type: 'play', src: p.src, link: p.link, name: p.name }, 'Memutar "' + p.name + '" di ' + s.label);
   }
 
@@ -722,6 +734,24 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     sendCmd({ type: 'open', src: curSrc }, 'Membuka ' + s.label);
   });
   $('plSave').addEventListener('click', function () { savePl(false); });
+  $('clockBtn').addEventListener('click', function () { sendCmd({ type: 'clock' }, 'Memunculkan jam'); });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-sp]'), function (b) {
+    b.addEventListener('click', function () {
+      var p = lastSpPl;
+      if (!p) { var ids = Object.keys(playlists).filter(function (k) { return playlists[k] && playlists[k].src === 'spotify'; }); if (ids.length) p = playlists[ids[0]]; }
+      if (!p) { toast('Tambahkan dulu satu playlist Spotify', 'bad'); return; }
+      playPl(p, b.getAttribute('data-sp'));
+    });
+  });
+  // isi nama otomatis dari judul asli playlist Spotify (kalau bisa diambil)
+  $('plLink').addEventListener('change', function () {
+    var link = this.value.trim();
+    if (curSrc !== 'spotify' || !/open\.spotify\.com\//.test(link) || $('plName').value.trim()) return;
+    fetch('https://open.spotify.com/oembed?url=' + encodeURIComponent(link.split('?')[0]))
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && j.title && !$('plName').value.trim()) $('plName').value = j.title; })
+      .catch(function () { });
+  });
   $('plSavePlay').addEventListener('click', function () { savePl(true); });
 
   $('customOn').addEventListener('change', function () { cfg.custom = this.checked; renderEditor(); });

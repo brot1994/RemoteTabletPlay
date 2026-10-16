@@ -322,7 +322,14 @@
     retryT = setTimeout(startRemote, 8000);
   }
 
+  // Versi aplikasi baru: perintah, status musik & heartbeat ditangani layanan latar belakang (Java)
+  var NATIVE = !!(AND && AND.setRemote);
+  function syncService() {
+    if (NATIVE) { try { AND.setRemote(!!S.remote && !!dbBase(), dbBase(), S.key, S.name || 'Tablet'); } catch (e) { } }
+  }
+
   function startRemote() {
+    syncService();
     stopRemote();
     if (!S.remote || !dbBase()) { setNet('off'); return; }
     setNet('connecting');
@@ -347,9 +354,11 @@
       if (!es || es.readyState === 2) scheduleRetry();
     };
 
-    startCmdStream();
-    heartbeat();
-    hbT = setInterval(heartbeat, 60000);
+    if (!NATIVE) {
+      startCmdStream();
+      heartbeat();
+      hbT = setInterval(heartbeat, 60000);
+    }
   }
 
   function applyRemote(path, data, isPatch) {
@@ -512,7 +521,9 @@
           var n = normalizeLink(src, c.link);
           if (!n.link) return { ok: false, msg: 'Link kosong' };
           S.musicSrc = src; S.musicName = String(c.name || ''); save();
-          var r2 = AND.playLink(src, n.link, n.uri);
+          var r2 = (src === 'spotify' && AND.playSpotify)
+            ? AND.playSpotify(n.link, n.uri, String(c.name || ''), String(c.method || 'auto'))
+            : AND.playLink(src, n.link, n.uri);
           var warn = AND.isSplit && !AND.isSplit() ? ' (layar tablet belum terbagi)' : '';
           return { ok: r2.indexOf('ok') === 0, msg: r2 + warn };
         }
@@ -537,6 +548,7 @@
   // ---- kirim status musik ke remote bila berubah
   var lastNowKey = '', lastArt = '', speakingNow = false;
   function pollNow() {
+    if (NATIVE) { if (panelOpen) syncMusicPanel(); return; }
     if (!AND || !AND.mediaInfo || !S.remote || !dbBase()) return;
     var info = {};
     try { info = JSON.parse(AND.mediaInfo(S.musicSrc)) || {}; } catch (e) { info = {}; }
@@ -546,9 +558,9 @@
       dur: info.dur || 0, pos: info.pos || 0,
       access: !!info.access, split: !!info.split, vol: typeof info.vol === 'number' ? info.vol : -1,
       tts: AND.ttsStatus ? AND.ttsStatus() : '', speaking: speakingNow,
-      acts: info.acts || '', spres: info.spres || '', ver: '1.1'
+      acts: info.acts || '', spres: info.spres || '', queue: info.queue || '', ver: '1.3'
     };
-    var key = [now.src, now.state, now.title, now.artist, now.access, now.split, now.vol, now.tts, now.speaking, now.playlist, now.acts, now.spres].join('|');
+    var key = [now.src, now.state, now.title, now.artist, now.access, now.split, now.vol, now.tts, now.speaking, now.playlist, now.acts, now.spres, now.queue].join('|');
     var art = info.art || '';
     if (key === lastNowKey && art === lastArt) return;
     lastNowKey = key;
@@ -678,7 +690,7 @@
       S.remote = this.checked; save(); syncPanel(); startRemote();
     });
     $('devName').addEventListener('change', function () {
-      S.name = this.value.trim() || 'Tablet'; save(); syncPanel(); heartbeat();
+      S.name = this.value.trim() || 'Tablet'; save(); syncPanel(); syncService(); if (!NATIVE) heartbeat();
     });
     $('dbUrl').addEventListener('change', function () {
       S.dbUrl = this.value.trim(); save(); syncPanel(); startRemote();
@@ -708,6 +720,11 @@
     });
     $('accBtn').addEventListener('click', function () { if (AND && AND.openMediaAccess) AND.openMediaAccess(); });
     $('ttsBtn').addEventListener('click', function () { if (AND && AND.openTtsSettings) AND.openTtsSettings(); });
+    $('kfBtn').addEventListener('click', function () { if (AND && AND.requestOverlayPermission) AND.requestOverlayPermission(); });
+    $('keepFront').addEventListener('change', function () {
+      if (AND && AND.setKeepFront) AND.setKeepFront(this.checked);
+      syncPanel();
+    });
     $('ttsTest').addEventListener('click', function () {
       var t = hasCustom() ? String(S.customText).trim() : 'Tes suara pengumuman Flip Clock';
       if (AND && AND.speak) AND.speak(t, true, 1);
@@ -731,6 +748,10 @@
     $('ttsDot').className = 'sdot ' + (tts === 'ok' ? 'ok' : 'err');
     $('ttsText').textContent = tts === 'ok' ? 'Suara bahasa Indonesia: siap' : (tts === 'no-lang' ? 'Suara bahasa Indonesia: belum terpasang' : 'Mesin suara: belum siap');
     $('ttsBtn').classList.toggle('hidden', tts === 'ok');
+    var kf = AND && AND.getKeepFront ? AND.getKeepFront() : true;
+    $('keepFront').checked = !!kf;
+    var canOv = AND && AND.canAutostartFromBoot ? AND.canAutostartFromBoot() : true;
+    $('kfWarn').classList.toggle('hidden', !kf || canOv);
   }
 
   var lastQr = '';

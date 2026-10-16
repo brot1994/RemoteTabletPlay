@@ -40,7 +40,18 @@ class MediaHelper {
 
     interface SpeakListener { void onSpeakState(boolean speaking); }
 
-    private final Activity act;
+    private static MediaHelper instance;
+
+    /** Satu objek bersama untuk aplikasi & layanan latar belakang. */
+    static synchronized MediaHelper get(Context c) {
+        if (instance == null) instance = new MediaHelper(c.getApplicationContext());
+        return instance;
+    }
+
+    private final Context ctx;
+    volatile Activity activity;          // diisi MainActivity saat terbuka
+    volatile boolean lastSplit = false;  // status layar terbagi terakhir yang diketahui
+    volatile boolean speaking = false;
     private final AudioManager audio;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private TextToSpeech tts;
@@ -53,32 +64,42 @@ class MediaHelper {
     private String lastArtKey = null;
     private String lastArtB64 = "";
 
-    MediaHelper(Activity act) {
-        this.act = act;
-        this.audio = (AudioManager) act.getSystemService(Context.AUDIO_SERVICE);
+    private MediaHelper(Context ctx) {
+        this.ctx = ctx;
+        this.audio = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
         initTts();
+    }
+
+    boolean isSplit() {
+        Activity a = activity;
+        if (a != null && MainActivity.visible) {
+            try { lastSplit = a.isInMultiWindowMode(); } catch (Exception ignored) { }
+        }
+        return lastSplit;
     }
 
     void setSpeakListener(SpeakListener l) { this.speakListener = l; }
 
     void shutdown() {
-        if (tts != null) tts.shutdown();
+        // dipakai bersama layanan latar belakang: jangan matikan TTS
     }
 
     // ------------------------------------------------------------------ permissions
     boolean hasMediaAccess() {
-        String s = Settings.Secure.getString(act.getContentResolver(), "enabled_notification_listeners");
-        return s != null && s.contains(act.getPackageName());
+        String s = Settings.Secure.getString(ctx.getContentResolver(), "enabled_notification_listeners");
+        return s != null && s.contains(ctx.getPackageName());
     }
 
     void openMediaAccessSettings() {
         try {
-            act.startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
+            Intent i = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(i);
         } catch (Exception ignored) { }
     }
 
     boolean installed(String pkg) {
-        try { act.getPackageManager().getPackageInfo(pkg, 0); return true; } catch (Exception e) { return false; }
+        try { ctx.getPackageManager().getPackageInfo(pkg, 0); return true; } catch (Exception e) { return false; }
     }
 
     static String pkgFor(String source) {
@@ -101,15 +122,15 @@ class MediaHelper {
         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(link));
         if (installed(pkg)) i.setPackage(pkg);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        if (act.isInMultiWindowMode()) i.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+        if (isSplit()) i.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
         try {
-            act.startActivity(i);
+            ctx.startActivity(i);
             return "ok";
         } catch (Exception e) {
             // aplikasi tidak bisa membuka link ini: coba tanpa paket tertentu
             try {
                 i.setPackage(null);
-                act.startActivity(i);
+                ctx.startActivity(i);
                 return "ok-generic";
             } catch (Exception e2) {
                 return "gagal: " + e2.getClass().getSimpleName();
@@ -120,8 +141,8 @@ class MediaHelper {
     // ------------------------------------------------------------------ media sessions
     private List<MediaController> sessions() {
         try {
-            MediaSessionManager msm = (MediaSessionManager) act.getSystemService(Context.MEDIA_SESSION_SERVICE);
-            return msm.getActiveSessions(new ComponentName(act, MediaListener.class));
+            MediaSessionManager msm = (MediaSessionManager) ctx.getSystemService(Context.MEDIA_SESSION_SERVICE);
+            return msm.getActiveSessions(new ComponentName(ctx, MediaListener.class));
         } catch (Exception e) {
             return null;
         }
@@ -215,69 +236,123 @@ class MediaHelper {
         return c != null && c.getPlaybackState() != null && c.getPlaybackState().getState() == PlaybackState.STATE_PLAYING;
     }
 
-    /**
-     * 1) Sesi Spotify ada → playFromUri / playFromMediaId, cek 3,5 detik kemudian.
-     * 2) Gagal / tidak ada sesi → buka link playlist di sisi sebelah, lalu coba lagi playFromUri,
-     *    lalu tekan play. Hasil akhir dicatat di lastSpotifyResult.
-     */
-    private String playSpotify(final String link, final String uri) {
-        final String target = (uri != null && !uri.isEmpty()) ? uri : link;
-        final MediaController c = spotifySession();
-        final String before = titleOf(c);
-        lastSpotifyResult = "mencoba";
-        if (c != null && c.getPlaybackState() != null) {
-            long a = c.getPlaybackState().getActions();
-            boolean sent = false;
-            try {
-                if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) {
-                    c.getTransportControls().playFromUri(Uri.parse(target), new Bundle());
-                    sent = true;
-                } else if ((a & PlaybackState.ACTION_PLAY_FROM_MEDIA_ID) != 0) {
-                    c.getTransportControls().playFromMediaId(target, new Bundle());
-                    sent = true;
-                }
-            } catch (Exception ignored) { }
-            if (sent) {
-                ui.postDelayed(() -> {
-                    MediaController c2 = spotifySession();
-                    if (isPlaying(c2) && !titleOf(c2).equals(before)) {
-                        lastSpotifyResult = "ok-langsung";
-                    } else {
-                        spotifyFallback(link, target, before);
-                    }
-                }, 3500);
-                return "ok-mencoba";
-            }
-        }
-        spotifyFallback(link, target, before);
-        return "ok-membuka";
+    private static String queueOf(MediaController c) {
+        if (c == null) return "";
+        CharSequence q = c.getQueueTitle();
+        return q == null ? "" : q.toString();
     }
 
-    private void spotifyFallback(String link, final String target, final String before) {
-        lastSpotifyResult = "membuka-playlist";
-        // buka playlist-nya di aplikasi Spotify (sisi sebelah kalau layar terbagi)
-        String r = openAdjacent("spotify", target.startsWith("spotify:") ? target : link);
-        if (!r.startsWith("ok")) r = openAdjacent("spotify", link);
+    /** Sudah pindah ke playlist baru? (antrean/judul berubah dan sedang diputar) */
+    private static boolean switched(MediaController c, String beforeTitle, String beforeQueue, String name) {
+        if (!isPlaying(c)) return false;
+        String q = queueOf(c);
+        if (name != null && !name.isEmpty() && q.toLowerCase(Locale.ROOT).contains(name.toLowerCase(Locale.ROOT))) return true;
+        if (!q.isEmpty() && !q.equals(beforeQueue)) return true;
+        return !titleOf(c).equals(beforeTitle) && beforeQueue.isEmpty();
+    }
+
+    private String playSpotify(String link, String uri) { return playSpotifyMethod(link, uri, "", "auto"); }
+
+    /**
+     * Cara memutar playlist Spotify:
+     *  "uri"    : perintah langsung playFromUri / playFromMediaId ke sesi Spotify
+     *  "play"   : buka link spotify:...:play (Spotify memutar otomatis)
+     *  "search" : minta Spotify mencari & memutar playlist berdasarkan NAMA (cara Google Assistant)
+     *  "open"   : buka playlist lalu tekan play
+     *  "auto"   : coba berurutan uri → play → search → open sampai berhasil
+     */
+    String playSpotifyMethod(final String link, final String uri, final String name, final String method) {
+        final String target = (uri != null && !uri.isEmpty()) ? uri : link;
+        final MediaController c0 = spotifySession();
+        final String bTitle = titleOf(c0), bQueue = queueOf(c0);
+        final String[] order;
+        switch (method) {
+            case "uri": order = new String[]{"uri"}; break;
+            case "play": order = new String[]{"play"}; break;
+            case "search": order = new String[]{"search"}; break;
+            case "open": order = new String[]{"open"}; break;
+            default: order = new String[]{"uri", "play", "search", "open"};
+        }
+        lastSpotifyResult = "mencoba";
+        runStep(order, 0, link, target, name, bTitle, bQueue);
+        return "ok-mencoba";
+    }
+
+    private void runStep(final String[] order, final int i, final String link, final String target,
+                         final String name, final String bTitle, final String bQueue) {
+        if (i >= order.length) { lastSpotifyResult = "gagal-semua"; return; }
+        String step = order[i];
+        boolean tried = trySpotify(step, link, target, name);
+        if (!tried) { runStep(order, i + 1, link, target, name, bTitle, bQueue); return; }
+        lastSpotifyResult = "coba-" + step;
         ui.postDelayed(() -> {
             MediaController c = spotifySession();
-            if (c == null) { command("spotify", "play"); lastSpotifyResult = "tombol-media"; return; }
-            if (isPlaying(c) && !titleOf(c).equals(before)) { lastSpotifyResult = "ok-buka"; return; }
-            try {
-                long a = c.getPlaybackState() != null ? c.getPlaybackState().getActions() : 0;
-                if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) c.getTransportControls().playFromUri(Uri.parse(target), new Bundle());
-                else c.getTransportControls().play();
-            } catch (Exception e) {
-                c.getTransportControls().play();
+            if (switched(c, bTitle, bQueue, name)) {
+                lastSpotifyResult = "ok-" + step;
+            } else if (i + 1 < order.length) {
+                runStep(order, i + 1, link, target, name, bTitle, bQueue);
+            } else {
+                if (c != null && !isPlaying(c)) c.getTransportControls().play();
+                lastSpotifyResult = "belum-pindah(" + step + ")";
             }
-            lastSpotifyResult = "buka+play";
-        }, 4000);
-        ui.postDelayed(() -> {
-            MediaController c = spotifySession();
-            if (c != null && !isPlaying(c)) {
-                c.getTransportControls().play();
-                lastSpotifyResult = "buka+play2";
+        }, "open".equals(step) ? 5000 : 4000);
+    }
+
+    private boolean trySpotify(String step, String link, String target, String name) {
+        try {
+            switch (step) {
+                case "uri": {
+                    MediaController c = spotifySession();
+                    if (c == null || c.getPlaybackState() == null) return false;
+                    long a = c.getPlaybackState().getActions();
+                    if ((a & PlaybackState.ACTION_PLAY_FROM_URI) != 0) {
+                        c.getTransportControls().playFromUri(Uri.parse(target), new Bundle());
+                        return true;
+                    }
+                    if ((a & PlaybackState.ACTION_PLAY_FROM_MEDIA_ID) != 0) {
+                        c.getTransportControls().playFromMediaId(target, new Bundle());
+                        return true;
+                    }
+                    return false;
+                }
+                case "play": {
+                    if (!target.startsWith("spotify:")) return false;
+                    return openAdjacent("spotify", target + ":play").startsWith("ok");
+                }
+                case "search": {
+                    if (name == null || name.trim().isEmpty()) return false;
+                    MediaController c = spotifySession();
+                    Bundle ex = new Bundle();
+                    ex.putString(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/playlist");
+                    ex.putString("android.intent.extra.playlist", name);
+                    if (c != null && c.getPlaybackState() != null
+                            && (c.getPlaybackState().getActions() & PlaybackState.ACTION_PLAY_FROM_SEARCH) != 0) {
+                        c.getTransportControls().playFromSearch(name, ex);
+                        return true;
+                    }
+                    Intent it = new Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH);
+                    it.setPackage(PKG_SPOTIFY);
+                    it.putExtra(android.app.SearchManager.QUERY, name);
+                    it.putExtras(ex);
+                    it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    if (isSplit()) it.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+                    ctx.startActivity(it);
+                    return true;
+                }
+                case "open": {
+                    String r = openAdjacent("spotify", target.startsWith("spotify:") ? target : link);
+                    if (!r.startsWith("ok")) return false;
+                    ui.postDelayed(() -> {
+                        MediaController c = spotifySession();
+                        if (c != null) c.getTransportControls().play();
+                    }, 3000);
+                    return true;
+                }
             }
-        }, 8000);
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
     }
 
     /** Info pemutar saat ini dalam bentuk JSON. */
@@ -285,7 +360,7 @@ class MediaHelper {
         JSONObject o = new JSONObject();
         try {
             o.put("access", hasMediaAccess());
-            o.put("split", act.isInMultiWindowMode());
+            o.put("split", isSplit());
             o.put("vol", volumePercent());
             MediaController c = pick(source);
             if (c == null) c = pick(null);
@@ -320,6 +395,7 @@ class MediaHelper {
                     o.put("acts", sb.toString().trim());
                 }
                 o.put("spres", lastSpotifyResult);
+                o.put("queue", queueOf(c));
             }
         } catch (Exception ignored) { }
         return o.toString();
@@ -378,10 +454,10 @@ class MediaHelper {
         };
         // utamakan mesin suara Google (punya bahasa Indonesia)
         if (installed(PKG_GOOGLE_TTS)) {
-            tts = new TextToSpeech(act, onInit, PKG_GOOGLE_TTS);
+            tts = new TextToSpeech(ctx, onInit, PKG_GOOGLE_TTS);
             ttsEngine = PKG_GOOGLE_TTS;
         } else {
-            tts = new TextToSpeech(act, onInit);
+            tts = new TextToSpeech(ctx, onInit);
         }
     }
 
@@ -408,7 +484,8 @@ class MediaHelper {
             @Override public void onDone(String id) { if ("last".equals(id)) finishSpeak(); }
             @Override public void onError(String id) { finishSpeak(); }
         });
-        if (speakListener != null) ui.post(() -> speakListener.onSpeakState(true));
+        speaking = true;
+        if (speakListener != null) ui.post(() -> { if (speakListener != null) speakListener.onSpeakState(true); });
         new Thread(() -> {
             if (bell) playBell();
             ui.post(() -> {
@@ -423,7 +500,8 @@ class MediaHelper {
 
     private void finishSpeak() {
         if (Build.VERSION.SDK_INT >= 26 && focusReq != null) audio.abandonAudioFocusRequest(focusReq);
-        if (speakListener != null) ui.post(() -> speakListener.onSpeakState(false));
+        speaking = false;
+        if (speakListener != null) ui.post(() -> { if (speakListener != null) speakListener.onSpeakState(false); });
     }
 
     /** "Ding-dong" dari dua nada. Dijalankan di thread latar. */
