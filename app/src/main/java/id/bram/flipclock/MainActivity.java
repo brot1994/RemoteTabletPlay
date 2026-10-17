@@ -85,6 +85,11 @@ public class MainActivity extends Activity {
         setContentView(web);
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
         RemoteService.start(this);
+        // dinyalakan otomatis setelah tablet hidup + mode jam mengambang → langsung ke belakang
+        if (getIntent() != null && getIntent().getBooleanExtra("fromBoot", false)
+                && !"off".equals(ClockOverlay.get(this).mode())) {
+            web.postDelayed(() -> moveTaskToBack(true), 2500);
+        }
         hideSystemUi();
     }
 
@@ -109,6 +114,7 @@ public class MainActivity extends Activity {
     protected void onStart() {
         super.onStart();
         visible = true;
+        ClockOverlay.get(this).setSuppressed(true);
         if (media != null) {
             media.activity = this;
             try { media.lastSplit = isInMultiWindowMode(); } catch (Exception ignored) { }
@@ -118,6 +124,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         visible = false;
+        ClockOverlay.get(this).setSuppressed(false);
         super.onStop();
     }
 
@@ -270,6 +277,29 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public boolean isSpeaking() { return media.speaking; }
+
+        // ---------------- jam mengambang
+        @JavascriptInterface
+        public boolean isOverlay() { return false; }
+
+        @JavascriptInterface
+        public String overlayMode() { return ClockOverlay.get(MainActivity.this).mode(); }
+
+        @JavascriptInterface
+        public int overlayPct() { return ClockOverlay.get(MainActivity.this).pct(); }
+
+        @JavascriptInterface
+        public boolean canOverlay() { return ClockOverlay.get(MainActivity.this).canDraw(); }
+
+        @JavascriptInterface
+        public String setOverlay(String mode, int pct) {
+            ClockOverlay ov = ClockOverlay.get(MainActivity.this);
+            String r = ov.setMode(mode, pct);
+            if (!"off".equals(ov.mode()) && ov.canDraw()) {
+                runOnUiThread(() -> web.postDelayed(() -> moveTaskToBack(true), 400));
+            }
+            return r;
+        }
 
         @JavascriptInterface
         public boolean isInstalled(String source) { return media.installed(MediaHelper.pkgFor(source)); }

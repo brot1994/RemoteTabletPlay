@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 public class RemoteService extends Service {
 
     static final String CHANNEL = "tabletplay_remote";
-    static final String VER = "2.3";
+    static final String VER = "2.4";
 
     static final String P_ENABLED = "r_enabled";
     static final String P_DB = "r_db";
@@ -82,6 +82,7 @@ public class RemoteService extends Service {
         media = MediaHelper.get(this);
         startForeground(71, buildNotification());
         running = true;
+        ClockOverlay.get(this).apply();
         startSse();
         ui.postDelayed(nowTick, 3000);
         ui.postDelayed(hbTick, 2000);
@@ -110,6 +111,12 @@ public class RemoteService extends Service {
     @Override
     public IBinder onBind(Intent intent) { return null; }
 
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        ClockOverlay.get(this).onConfigChanged();
+    }
+
     private Notification buildNotification() {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26) {
@@ -122,7 +129,7 @@ public class RemoteService extends Service {
         PendingIntent pi = PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0));
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
-        b.setContentTitle("Tablet Play aktif")
+        b.setContentTitle("Tablet Play Overlay aktif")
                 .setContentText("Siap menerima musik & pengumuman dari remote")
                 .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
                 .setOngoing(true)
@@ -273,6 +280,22 @@ public class RemoteService extends Service {
                     showClock();
                     return new String[]{"ok", "Jam dimunculkan"};
                 }
+                case "layout": {
+                    String mode = c.optString("mode", "off");
+                    ClockOverlay ov = ClockOverlay.get(this);
+                    String r = ov.setMode(mode, c.optInt("pct", 0));
+                    if ("off".equals(ov.mode())) {
+                        showClock();
+                        return new String[]{"ok", "Jam layar penuh"};
+                    }
+                    // aplikasi utama sedang tampil → pindahkan ke belakang agar jam mengambang terlihat
+                    android.app.Activity a = media.activity;
+                    if (a != null && MainActivity.visible) {
+                        a.runOnUiThread(() -> a.moveTaskToBack(true));
+                    }
+                    return new String[]{"ok".equals(r) ? "ok" : "fail",
+                            "ok".equals(r) ? ("Jam mengambang " + ("bottom".equals(ov.mode()) ? "bawah " : "kanan ") + ov.pct() + "%") : r};
+                }
                 default:
                     return new String[]{"fail", "Perintah tidak dikenal"};
             }
@@ -287,6 +310,7 @@ public class RemoteService extends Service {
 
     /** Setelah membuka aplikasi musik, pastikan jam tetap tampil di sisi sebelah. */
     private void keepClockVisible() {
+        if (!"off".equals(ClockOverlay.get(this).mode())) return;   // jam mengambang selalu tampil
         if (!prefs().getBoolean(P_KEEPFRONT, true)) return;
         ui.postDelayed(() -> { if (!MainActivity.visible) showClock(); }, 3000);
         ui.postDelayed(() -> { if (!MainActivity.visible) showClock(); }, 7000);
@@ -382,7 +406,11 @@ public class RemoteService extends Service {
         now.put("acts", info.optString("acts", ""));
         now.put("spres", info.optString("spres", ""));
         now.put("queue", info.optString("queue", ""));
-        now.put("clock", MainActivity.visible);
+        ClockOverlay ov = ClockOverlay.get(this);
+        now.put("clock", MainActivity.visible || ov.isShowing());
+        now.put("layout", ov.mode());
+        now.put("pct", ov.pct());
+        now.put("overlayPerm", ov.canDraw());
         now.put("ver", VER);
         String art = info.optString("art", "");
         String k = now.toString();

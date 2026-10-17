@@ -98,6 +98,28 @@
     </section>
 
     <section>
+      <h3>Mode tampilan jam</h3>
+      <div class="box pad">
+        <div class="seg" id="modeSeg">
+          <button data-mode="off">Layar penuh</button>
+          <button data-mode="right">Mengambang kanan</button>
+          <button data-mode="bottom">Mengambang bawah</button>
+        </div>
+        <label class="row" style="cursor:default">
+          <div class="rtxt"><div class="rl">Ukuran jam mengambang</div><div class="rd">Persen dari lebar (kanan) atau tinggi (bawah) layar</div></div>
+          <select id="ovPct" class="txt" style="width:110px">
+            <option value="20">20%</option><option value="25">25%</option><option value="30">30%</option><option value="35">35%</option><option value="40">40%</option><option value="50">50%</option>
+          </select>
+        </label>
+        <div class="hint">Mode mengambang: jam tampil di atas YouTube / Spotify yang berjalan layar penuh. Ketuk jam mengambang untuk kembali ke aplikasi ini.</div>
+        <div id="ovWarn" class="warn hidden">
+          <div>Mode mengambang butuh izin <b>"Tampil di atas aplikasi lain"</b>.</div>
+          <button class="btn" id="ovBtn">Buka pengaturan izin</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
       <h3>Musik &amp; suara pengumuman</h3>
       <div class="box pad">
         <div class="status"><span id="accDot" class="sdot"></span><span id="accText"></span></div>
@@ -151,7 +173,7 @@
       </div>
     </section>
 
-    <div class="ver">Tablet Play v1.3 · ketuk layar untuk memunculkan tombol pengaturan</div>
+    <div class="ver">Tablet Play Overlay v1.4 · ketuk layar untuk memunculkan tombol pengaturan</div>
   </div>
 </div>
 

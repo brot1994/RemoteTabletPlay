@@ -27,10 +27,17 @@ body { font-family: 'Archivo', sans-serif; user-select: none; -webkit-user-selec
 #clock { display: flex; flex-direction: column; align-items: center; }
 #cards { display: flex; align-items: center; }
 #clock.land #cards { flex-direction: row; }
+#clock.strip { flex-direction: row; align-items: center; }
+#clock.strip #cards { flex-direction: row; }
+#clock.strip #secwrap { flex-direction: column; align-self: flex-end; }
+#clock.strip #info { align-items: flex-start; text-align: left; }
+#clock.strip #customWrap { justify-content: flex-start; }
+body.overlay #gear, body.overlay #netdot { display: none !important; }
 #clock.port #cards { flex-direction: column; }
 
 #secwrap { display: flex; align-items: center; }
 #clock.land #secwrap { flex-direction: column; align-self: flex-end; }
+select.txt { padding: 0 10px; }
 #clock.port #secwrap { flex-direction: row; }
 #ampm {
   font-family: 'Archivo', sans-serif; font-weight: 600; letter-spacing: 0.14em;

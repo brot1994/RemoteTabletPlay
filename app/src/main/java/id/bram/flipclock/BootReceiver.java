@@ -14,6 +14,7 @@ public class BootReceiver extends BroadcastReceiver {
         if (!enabled) return;
         Intent i = new Intent(context, MainActivity.class);
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        i.putExtra("fromBoot", true);
         try {
             context.startActivity(i);
         } catch (Exception ignored) { }

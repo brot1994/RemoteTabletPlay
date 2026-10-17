@@ -172,7 +172,8 @@
     var land = window.innerWidth >= window.innerHeight;
     document.body.classList.toggle('land', land);
     document.body.classList.toggle('port', !land);
-    clockEl.className = (vw >= vh * 0.9) ? 'land' : 'port';
+    var isStrip = vw >= vh * 2.4;          // strip lebar (jam mengambang di bawah)
+    clockEl.className = isStrip ? 'strip' : (vw >= vh * 0.9) ? 'land' : 'port';
     var isLand = clockEl.className === 'land';
     var base = Math.min(vw, vh);
 
@@ -181,14 +182,20 @@
     var custWrap = $('customWrap');
     custWrap.style.display = hasCustom() ? '' : 'none';
     custEl.textContent = hasCustom() ? String(S.customText).trim() : '';
-    dateEl.style.fontSize = (base * (isLand ? 0.042 : 0.04)) + 'px';
-    custWrap.style.fontSize = (base * (isLand ? 0.068 : 0.062)) + 'px';
-    custWrap.style.maxWidth = (vw * 0.92) + 'px';
+    if (isStrip) {
+      dateEl.style.fontSize = (vh * 0.1) + 'px';
+      custWrap.style.fontSize = (vh * 0.17) + 'px';
+      custWrap.style.maxWidth = (vw * 0.42) + 'px';
+    } else {
+      dateEl.style.fontSize = (base * (isLand ? 0.042 : 0.04)) + 'px';
+      custWrap.style.fontSize = (base * (isLand ? 0.068 : 0.062)) + 'px';
+      custWrap.style.maxWidth = (vw * 0.92) + 'px';
+    }
     info.style.gap = (base * 0.025) + 'px';
     var showInfo = S.date || hasCustom();
     info.style.display = showInfo ? '' : 'none';
-    var infoH = showInfo ? info.offsetHeight : 0;
-    var infoGap = showInfo ? base * 0.055 : 0;
+    var infoH = showInfo && !isStrip ? info.offsetHeight : 0;
+    var infoGap = showInfo ? (isStrip ? vw * 0.03 : base * 0.055) : 0;
     clockEl.style.gap = infoGap + 'px';
 
     $('secwrap').style.display = S.sec ? '' : 'none';
@@ -196,7 +203,13 @@
     ampm.style.display = S.f24 ? 'none' : '';
 
     var W, H, gap;
-    if (isLand) {
+    if (isStrip) {
+      gap = vh * 0.07;
+      var infoW = showInfo ? Math.min(info.offsetWidth, vw * 0.44) : 0;
+      var cardsW = vw * 0.94 - infoW - infoGap - gap * (S.sec ? 2 : 1);
+      W = Math.min(cardsW / (2 + (S.sec ? 0.3 : 0)), vh * 0.8 / 0.89);
+      H = W * 0.89;
+    } else if (isLand) {
       gap = vw * 0.028;
       var availH = vh * 0.86 - infoH - infoGap;
       var availW = vw * 0.92 - gap * (S.sec ? 2 : 1);
@@ -558,7 +571,7 @@
       dur: info.dur || 0, pos: info.pos || 0,
       access: !!info.access, split: !!info.split, vol: typeof info.vol === 'number' ? info.vol : -1,
       tts: AND.ttsStatus ? AND.ttsStatus() : '', speaking: speakingNow,
-      acts: info.acts || '', spres: info.spres || '', queue: info.queue || '', ver: '1.3'
+      acts: info.acts || '', spres: info.spres || '', queue: info.queue || '', ver: '1.4'
     };
     var key = [now.src, now.state, now.title, now.artist, now.access, now.split, now.vol, now.tts, now.speaking, now.playlist, now.acts, now.spres, now.queue].join('|');
     var art = info.art || '';
@@ -720,6 +733,23 @@
     });
     $('accBtn').addEventListener('click', function () { if (AND && AND.openMediaAccess) AND.openMediaAccess(); });
     $('ttsBtn').addEventListener('click', function () { if (AND && AND.openTtsSettings) AND.openTtsSettings(); });
+    var modeBtns = $('modeSeg').getElementsByTagName('button');
+    for (var mb = 0; mb < modeBtns.length; mb++) {
+      modeBtns[mb].addEventListener('click', function () {
+        var m = this.getAttribute('data-mode');
+        if (AND && AND.setOverlay) {
+          var r = AND.setOverlay(m, parseInt($('ovPct').value, 10) || 25);
+          if (r !== 'ok' && m !== 'off' && AND.requestOverlayPermission) AND.requestOverlayPermission();
+        }
+        syncPanel();
+      });
+    }
+    $('ovPct').addEventListener('change', function () {
+      var m = AND && AND.overlayMode ? AND.overlayMode() : 'off';
+      if (AND && AND.setOverlay) AND.setOverlay(m === 'off' ? 'off' : m, parseInt(this.value, 10) || 25);
+      if (m !== 'off') syncPanel();
+    });
+    $('ovBtn').addEventListener('click', function () { if (AND && AND.requestOverlayPermission) AND.requestOverlayPermission(); });
     $('kfBtn').addEventListener('click', function () { if (AND && AND.requestOverlayPermission) AND.requestOverlayPermission(); });
     $('keepFront').addEventListener('change', function () {
       if (AND && AND.setKeepFront) AND.setKeepFront(this.checked);
@@ -748,6 +778,12 @@
     $('ttsDot').className = 'sdot ' + (tts === 'ok' ? 'ok' : 'err');
     $('ttsText').textContent = tts === 'ok' ? 'Suara bahasa Indonesia: siap' : (tts === 'no-lang' ? 'Suara bahasa Indonesia: belum terpasang' : 'Mesin suara: belum siap');
     $('ttsBtn').classList.toggle('hidden', tts === 'ok');
+    var om = AND && AND.overlayMode ? AND.overlayMode() : 'off';
+    var mbs = $('modeSeg').getElementsByTagName('button');
+    for (var q = 0; q < mbs.length; q++) mbs[q].classList.toggle('on', mbs[q].getAttribute('data-mode') === om);
+    if (AND && AND.overlayPct) $('ovPct').value = String(AND.overlayPct());
+    var canOvl = AND && AND.canOverlay ? AND.canOverlay() : true;
+    $('ovWarn').classList.toggle('hidden', canOvl);
     var kf = AND && AND.getKeepFront ? AND.getKeepFront() : true;
     $('keepFront').checked = !!kf;
     var canOv = AND && AND.canAutostartFromBoot ? AND.canAutostartFromBoot() : true;
@@ -840,7 +876,10 @@
   }
   function hideGear() { $('gear').classList.remove('show'); }
 
+  var IS_OVERLAY = /[?&]overlay=1/.test(location.search);
+  if (IS_OVERLAY) document.body.classList.add('overlay');
   $('stage').addEventListener('click', function (e) {
+    if (IS_OVERLAY) { if (AND && AND.openApp) AND.openApp(); return; }
     if (panelOpen) { closePanel(); return; }
     if (e.target.closest && e.target.closest('#gear')) return;
     showGear();
