@@ -198,6 +198,24 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       </div>
     </section>
 
+    <section id="layoutSec" class="hidden">
+      <h2>Tampilan jam di tablet</h2>
+      <div class="box pad">
+        <div class="seg" id="laySeg" role="group" aria-label="Tampilan jam">
+          <button data-mode="off">Layar penuh</button>
+          <button data-mode="right">Kanan</button>
+          <button data-mode="bottom">Bawah</button>
+        </div>
+        <label class="row" style="cursor:default">
+          <span class="rl">Ukuran jam mengambang</span>
+          <select id="layPct" class="txt" style="width:100px;padding:0 10px">
+            <option value="20">20%</option><option value="25" selected>25%</option><option value="30">30%</option><option value="35">35%</option><option value="40">40%</option><option value="50">50%</option>
+          </select>
+        </label>
+        <div class="msg" id="layMsg"></div>
+      </div>
+    </section>
+
     <section>
       <h2 id="pvTitle">Pratinjau jam</h2>
       <div class="preview" id="preview">
@@ -506,7 +524,23 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     $('openAppBtn').textContent = 'Buka ' + s.label + ' di tablet';
   }
 
+  function renderLayout() {
+    var has = now && typeof now.layout === 'string';
+    $('layoutSec').classList.toggle('hidden', !has);
+    if (!has) return;
+    var bs = $('laySeg').getElementsByTagName('button');
+    for (var i = 0; i < bs.length; i++) {
+      var on = bs[i].getAttribute('data-mode') === now.layout;
+      bs[i].classList.toggle('on', on);
+      bs[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    if (now.pct && document.activeElement !== $('layPct')) $('layPct').value = String(now.pct);
+    $('layMsg').textContent = now.overlayPerm === false ? 'Izin "Tampil di atas aplikasi lain" belum diberikan di tablet' : '';
+    $('layMsg').className = 'msg' + (now.overlayPerm === false ? ' err' : '');
+  }
+
   function renderNow() {
+    renderLayout();
     var playing = now && now.state === 'playing';
     var srcName = '';
     if (now && now.src) { var s = SOURCES.filter(function (x) { return x.id === now.src; })[0]; srcName = s ? s.label : ''; }
@@ -734,6 +768,19 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     sendCmd({ type: 'open', src: curSrc }, 'Membuka ' + s.label);
   });
   $('plSave').addEventListener('click', function () { savePl(false); });
+  Array.prototype.forEach.call($('laySeg').getElementsByTagName('button'), function (b) {
+    b.addEventListener('click', function () {
+      var m = b.getAttribute('data-mode');
+      var pct = parseInt($('layPct').value, 10) || 25;
+      var label = m === 'off' ? 'Jam layar penuh' : 'Jam mengambang ' + (m === 'right' ? 'kanan ' : 'bawah ') + pct + '%';
+      sendCmd({ type: 'layout', mode: m, pct: pct }, label);
+    });
+  });
+  $('layPct').addEventListener('change', function () {
+    if (!now || !now.layout || now.layout === 'off') return;
+    var pct = parseInt(this.value, 10) || 25;
+    sendCmd({ type: 'layout', mode: now.layout, pct: pct }, 'Ukuran jam ' + pct + '%');
+  });
   $('clockBtn').addEventListener('click', function () { sendCmd({ type: 'clock' }, 'Memunculkan jam'); });
   Array.prototype.forEach.call(document.querySelectorAll('[data-sp]'), function (b) {
     b.addEventListener('click', function () {
