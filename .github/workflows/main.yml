@@ -3,7 +3,11 @@ name: Build APK Tablet Play
 on:
   push:
     branches: [ main ]
+    paths-ignore: [ 'docs/TabletPlay.apk' ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -32,3 +36,13 @@ jobs:
         with:
           name: TabletPlay-apk
           path: out/TabletPlay.apk
+
+      - name: Simpan APK ke docs (bisa diunduh dari GitHub Pages)
+        run: |
+          cp out/TabletPlay.apk docs/TabletPlay.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/TabletPlay.apk
+          git commit -m "APK terbaru [skip ci]" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
