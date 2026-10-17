@@ -60,8 +60,8 @@
           <div class="rtxt"><div class="rl">Tampilkan teks kustom</div><div class="rd">Muncul di bawah hari dan tanggal; jam mengecil otomatis</div></div>
           <input type="checkbox" class="sw" id="customOn">
         </label>
-        <label for="customText" class="lbl">Isi teks (maks. 60 huruf)</label>
-        <input id="customText" type="text" class="txt" maxlength="60" placeholder="Contoh: ZERO ACCIDENT · UTAMAKAN K3">
+        <label for="customText" class="lbl">Isi teks (maks. 150 huruf)</label>
+        <input id="customText" type="text" class="txt" maxlength="150" placeholder="Contoh: ZERO ACCIDENT · UTAMAKAN K3">
       </div>
     </section>
 
@@ -93,6 +93,30 @@
             <button class="btn ghost" id="newKeyBtn">Buat kode perangkat baru</button>
             <div class="hint">Kode baru membuat link/QR lama tidak berlaku lagi.</div>
           </details>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3>Mode tampilan jam</h3>
+      <div class="box pad">
+        <div class="seg" id="modeSeg">
+          <button data-mode="off">Layar penuh</button>
+          <button data-mode="left">Kiri</button>
+          <button data-mode="right">Kanan</button>
+          <button data-mode="top">Atas</button>
+          <button data-mode="bottom">Bawah</button>
+        </div>
+        <label class="row" style="cursor:default">
+          <div class="rtxt"><div class="rl">Ukuran jam mengambang</div><div class="rd">Persen dari lebar (kiri/kanan) atau tinggi (atas/bawah) layar</div></div>
+          <select id="ovPct" class="txt" style="width:110px">
+            <option value="15">15%</option><option value="20">20%</option><option value="25">25%</option><option value="30">30%</option><option value="35">35%</option><option value="40">40%</option><option value="50">50%</option><option value="60">60%</option><option value="70">70%</option><option value="80">80%</option>
+          </select>
+        </label>
+        <div class="hint">Mode mengambang: jam tampil di atas YouTube / Spotify yang berjalan layar penuh. Ketuk jam mengambang untuk kembali ke aplikasi ini.</div>
+        <div id="ovWarn" class="warn hidden">
+          <div>Mode mengambang butuh izin <b>"Tampil di atas aplikasi lain"</b>.</div>
+          <button class="btn" id="ovBtn">Buka pengaturan izin</button>
         </div>
       </div>
     </section>
@@ -151,7 +175,7 @@
       </div>
     </section>
 
-    <div class="ver">Tablet Play v1.3 · ketuk layar untuk memunculkan tombol pengaturan</div>
+    <div class="ver">Tablet Play v1.6 · ketuk layar untuk memunculkan tombol pengaturan</div>
   </div>
 </div>
 

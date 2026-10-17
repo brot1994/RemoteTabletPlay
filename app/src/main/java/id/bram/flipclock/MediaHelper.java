@@ -485,6 +485,7 @@ class MediaHelper {
             @Override public void onError(String id) { finishSpeak(); }
         });
         speaking = true;
+        ClockOverlay.get(ctx).notifySpeaking(true);
         if (speakListener != null) ui.post(() -> { if (speakListener != null) speakListener.onSpeakState(true); });
         new Thread(() -> {
             if (bell) playBell();
@@ -501,6 +502,7 @@ class MediaHelper {
     private void finishSpeak() {
         if (Build.VERSION.SDK_INT >= 26 && focusReq != null) audio.abandonAudioFocusRequest(focusReq);
         speaking = false;
+        ClockOverlay.get(ctx).notifySpeaking(false);
         if (speakListener != null) ui.post(() -> { if (speakListener != null) speakListener.onSpeakState(false); });
     }
 

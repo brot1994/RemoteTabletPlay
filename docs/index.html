@@ -45,6 +45,8 @@ h2 { margin: 0 0 10px 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.
 /* music */
 .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: var(--paper); padding: 4px; border-radius: 12px; }
 .seg button { min-height: 44px; border: none; border-radius: 9px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 6px; }
+#laySeg { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#laySeg button[data-mode="off"] { grid-column: 1 / -1; }
 .seg button.on { background: var(--ink); color: #fff; font-weight: 600; }
 .sdot { width: 9px; height: 9px; border-radius: 5px; flex-shrink: 0; }
 .np { display: flex; gap: 14px; align-items: center; min-height: 76px; }
@@ -146,6 +148,21 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   <section id="devSection" class="hidden">
     <h2>Pilih tablet</h2>
     <div class="devs" id="devList"></div>
+    <button class="btn2" id="shareBtn" style="width:100%;margin-top:10px">Bagikan akses tablet ini ke orang lain</button>
+    <div class="box pad hidden" id="shareBox" style="margin-top:10px">
+      <div class="seg" id="shareSeg" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <button data-share="full" class="on">Akses penuh</button>
+        <button data-share="limited">Pesan saja</button>
+      </div>
+      <div class="lbl" id="shareDesc"></div>
+      <input class="txt" id="shareLink" type="text" readonly style="font-size:13px">
+      <div class="two">
+        <a class="btn" id="shareWa" href="#" target="_blank" rel="noopener" style="text-decoration:none">Kirim lewat WhatsApp</a>
+        <button class="btn ghost" id="shareCopy">Salin link</button>
+      </div>
+      <button class="btn2" id="shareMore">Bagikan lewat aplikasi lain…</button>
+      <button class="linkbtn danger" id="shareRevoke">Cabut semua akses "pesan saja" (buat link baru)</button>
+    </div>
     <div class="box pad" id="checkBox" style="margin-top:10px">
       <div class="checks" id="checks"></div>
     </div>
@@ -153,7 +170,11 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   <div id="editor" class="hidden" style="display:flex;flex-direction:column;gap:22px">
 
-    <section>
+    <div id="limitedNote" class="box pad hidden">
+      <div class="lbl"><b>Akses pesan saja.</b> Dari HP ini Anda bisa menampilkan pesan dan membunyikan pengumuman di tablet. Musik, warna dan tampilan diatur oleh pemilik akses penuh.</div>
+    </div>
+
+    <section id="musicSec">
       <h2>Musik &amp; video</h2>
       <div class="box pad">
         <div class="seg" id="srcSeg" role="group" aria-label="Sumber musik"></div>
@@ -203,20 +224,22 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       <div class="box pad">
         <div class="seg" id="laySeg" role="group" aria-label="Tampilan jam">
           <button data-mode="off">Layar penuh</button>
+          <button data-mode="left">Kiri</button>
           <button data-mode="right">Kanan</button>
+          <button data-mode="top">Atas</button>
           <button data-mode="bottom">Bawah</button>
         </div>
         <label class="row" style="cursor:default">
           <span class="rl">Ukuran jam mengambang</span>
           <select id="layPct" class="txt" style="width:100px;padding:0 10px">
-            <option value="20">20%</option><option value="25" selected>25%</option><option value="30">30%</option><option value="35">35%</option><option value="40">40%</option><option value="50">50%</option>
+            <option value="15">15%</option><option value="20">20%</option><option value="25" selected>25%</option><option value="30">30%</option><option value="35">35%</option><option value="40">40%</option><option value="50">50%</option><option value="60">60%</option><option value="70">70%</option><option value="80">80%</option>
           </select>
         </label>
         <div class="msg" id="layMsg"></div>
       </div>
     </section>
 
-    <section>
+    <section id="pvSec">
       <h2 id="pvTitle">Pratinjau jam</h2>
       <div class="preview" id="preview">
         <div class="pcards">
@@ -232,9 +255,9 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       <h2>Pesan</h2>
       <div class="box pad">
         <label class="row"><span class="rl">Tampilkan pesan di jam</span><input type="checkbox" class="sw" id="customOn"></label>
-        <label for="customText" class="lbl">Isi pesan (maks. 60 huruf)</label>
-        <textarea id="customText" class="txt" rows="2" maxlength="60" placeholder="Ketik pesan untuk tablet"></textarea>
-        <div class="count" id="count">0/60</div>
+        <label for="customText" class="lbl">Isi pesan (maks. 150 huruf)</label>
+        <textarea id="customText" class="txt" rows="3" maxlength="150" placeholder="Ketik pesan untuk tablet"></textarea>
+        <div class="count" id="count">0/150</div>
         <div class="lbl">Teks cepat</div>
         <div class="chips" id="chips"></div>
         <button class="linkbtn" id="saveQuick">+ Simpan pesan ini sebagai teks cepat</button>
@@ -254,7 +277,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       </div>
     </section>
 
-    <details>
+    <details id="colorsDet">
       <summary>Warna jam</summary>
       <div class="box" id="colors"></div>
       <div style="margin-top:10px"><button class="btn ghost" id="sendColors" style="width:100%">Kirim warna ke tablet</button></div>
@@ -265,12 +288,14 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       <div class="box pad">
         <div class="lbl">Kode perangkat: <span id="mCode" style="font-family:monospace"></span></div>
         <div class="lbl">Info teknis: <span id="diag" style="font-family:monospace;overflow-wrap:anywhere"></span></div>
+        <div id="manageSpotify">
         <div class="lbl" style="margin-top:6px"><b>Uji cara memutar playlist Spotify</b> — memakai playlist Spotify terakhir yang Anda putar (atau yang pertama di daftar). Tekan satu per satu, tunggu ±8 detik, lihat apakah lagu pindah ke playlist itu.</div>
         <div class="two">
           <button class="btn2" data-sp="uri">Cara 1: perintah langsung</button>
           <button class="btn2" data-sp="play">Cara 2: link otomatis putar</button>
           <button class="btn2" data-sp="search">Cara 3: cari nama playlist</button>
           <button class="btn2" data-sp="open">Cara 4: buka lalu play</button>
+        </div>
         </div>
         <button class="btn2 danger" id="removeBtn">Hapus tablet ini dari daftar di HP ini</button>
       </div>
@@ -341,20 +366,21 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     if (!h) return;
     var p = {};
     h.split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) p[kv.substr(0, i)] = decodeURIComponent(kv.substr(i + 1)); });
-    if (p.db && p.k && p.k.length >= 20) addDevice(clean(p.db), p.k, p.n || 'Tablet');
+    if (p.db && p.k && p.k.length >= 20) addDevice(clean(p.db), p.k, p.n || 'Tablet', p.r === 'm' ? 'limited' : 'full');
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
   })();
 
-  function addDevice(db, key, name) {
+  function addDevice(db, key, name, role) {
     for (var i = 0; i < devices.length; i++) {
-      if (devices[i].k === key) { devices[i].db = db; devices[i].n = name || devices[i].n; sel = i; store(DEV_KEY, devices); store(SEL_KEY, sel); return; }
+      if (devices[i].k === key) { devices[i].db = db; devices[i].n = name || devices[i].n; if (role) devices[i].r = role; sel = i; store(DEV_KEY, devices); store(SEL_KEY, sel); return; }
     }
-    devices.push({ db: db, k: key, n: name || 'Tablet' });
+    devices.push({ db: db, k: key, n: name || 'Tablet', r: role || 'full' });
     sel = devices.length - 1;
     store(DEV_KEY, devices); store(SEL_KEY, sel);
   }
 
   function cur() { return devices[sel] || null; }
+  function isLimited(d) { return !!d && d.r === 'limited'; }
   function url(d, part) { return d.db + '/clocks/' + d.k + '/' + part + '.json'; }
   function devName(d) { var st = statuses[d.k]; return (st && st.name) || d.n || 'Tablet'; }
   function isOnline(st) { return st && st.lastSeen && (Date.now() - st.lastSeen < 150000); }
@@ -382,7 +408,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       b.className = 'dev' + (i === sel ? ' on' : '');
       b.innerHTML = '<span class="dot"></span><span class="grow"><span class="dname"></span><span class="dstat"></span></span><span class="dcode"></span>';
       b.querySelector('.dot').className = 'dot' + (online ? ' ok' : '');
-      b.querySelector('.dname').textContent = devName(d);
+      b.querySelector('.dname').textContent = devName(d) + (isLimited(d) ? ' · pesan saja' : '');
       var extra = '';
       if (st && typeof st.batt === 'number' && st.batt >= 0) extra = ' · baterai ' + st.batt + '%' + (st.charging ? ' (dicas)' : '');
       b.querySelector('.dstat').textContent = !st ? 'Memeriksa…' : online ? 'Online' + extra : ('Offline' + (st.lastSeen ? ' · terakhir ' + ago(st.lastSeen) : ''));
@@ -410,10 +436,12 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       el.lastChild.textContent = text;
       box.appendChild(el);
     }
+    if (isLimited(d)) { line(isOnline(st) ? 'ok' : '', isOnline(st) ? 'Tablet online — siap menerima pesan' : 'Menunggu tablet online…'); return; }
     if (st && st.ver && st.ver < '2') { line('warn', 'Tablet memakai Flip Clock versi lama (' + st.ver + ') — pasang Tablet Play untuk musik & suara'); return; }
     if (!now) { line('', 'Menunggu info musik dari tablet…'); return; }
     line(now.access ? 'ok' : 'err', now.access ? 'Kontrol musik: aktif' : 'Kontrol musik: izin belum diberikan di tablet');
-    line(now.split ? 'ok' : 'warn', now.split ? 'Layar terbagi: aktif' : 'Layar terbagi: belum aktif — musik akan menutupi jam');
+    if (now.layout && now.layout !== 'off') line('ok', 'Jam mengambang: ' + (LAY_LABEL[now.layout] || now.layout) + ' ' + (now.pct || 25) + '%');
+    else line(now.split ? 'ok' : 'warn', now.split ? 'Layar terbagi: aktif' : 'Layar terbagi: belum aktif — musik akan menutupi jam');
     line(now.tts === 'ok' ? 'ok' : 'err', now.tts === 'ok' ? 'Suara bahasa Indonesia: siap' : 'Suara bahasa Indonesia: belum terpasang di tablet');
     if (typeof now.clock === 'boolean') line(now.clock ? 'ok' : 'warn', now.clock ? 'Jam: tampil di layar' : 'Jam: sedang tidak tampil (tertutup aplikasi lain)');
   }
@@ -427,9 +455,25 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     });
   }
 
+  function applyRole() {
+    var lim = isLimited(cur());
+    ['musicSec', 'pvSec', 'colorsDet', 'shareBtn', 'checkBox'].forEach(function (id) { if ($(id)) $(id).classList.toggle('hidden', lim && id !== 'checkBox'); });
+    $('limitedNote').classList.toggle('hidden', !lim);
+    if (lim) $('layoutSec').classList.add('hidden');
+    $('manageSpotify').classList.toggle('hidden', lim);
+  }
+
   function selectDevice() {
     now = null; playlists = {};
+    if ($('shareBox')) $('shareBox').classList.add('hidden');
+    applyRole();
     renderDevices(); renderNow(); renderPlaylists();
+    if (isLimited(cur())) {
+      if (nowES) { try { nowES.close(); } catch (e) { } nowES = null; }
+      cfg = JSON.parse(JSON.stringify(DEFAULT_CFG)); cfg.custom = true;
+      $('sendMsg').textContent = ''; renderEditor(); refreshStatus();
+      return;
+    }
     loadConfig(); loadPlaylists(); listenNow(); refreshStatus();
   }
 
@@ -524,6 +568,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     $('openAppBtn').textContent = 'Buka ' + s.label + ' di tablet';
   }
 
+  var LAY_LABEL = { left: 'kiri', right: 'kanan', top: 'atas', bottom: 'bawah' };
   function renderLayout() {
     var has = now && typeof now.layout === 'string';
     $('layoutSec').classList.toggle('hidden', !has);
@@ -653,7 +698,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     var d = cur(); if (!d) return Promise.reject(new Error('no device'));
     var body = {
       textColor: cfg.textColor, cardColor: cfg.cardColor, bgColor: cfg.bgColor, accent: cfg.accent,
-      custom: !!cfg.custom, customText: (cfg.customText || '').substr(0, 60),
+      custom: !!cfg.custom, customText: (cfg.customText || '').substr(0, 150),
       updatedAt: { '.sv': 'timestamp' }, by: 'remote'
     };
     return fetch(url(d, 'config'), { method: 'PUT', body: JSON.stringify(body) }).then(function (r) {
@@ -708,7 +753,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     var ta = $('customText');
     ta.disabled = !cfg.custom;
     if (document.activeElement !== ta) ta.value = cfg.customText || '';
-    $('count').textContent = (cfg.customText || '').length + '/60';
+    $('count').textContent = (cfg.customText || '').length + '/150';
     $('bellOn').checked = !!msgOpt.bell;
     $('twiceOn').checked = !!msgOpt.twice;
     var gs = $('colors').getElementsByClassName('cg');
@@ -772,7 +817,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     b.addEventListener('click', function () {
       var m = b.getAttribute('data-mode');
       var pct = parseInt($('layPct').value, 10) || 25;
-      var label = m === 'off' ? 'Jam layar penuh' : 'Jam mengambang ' + (m === 'right' ? 'kanan ' : 'bawah ') + pct + '%';
+      var label = m === 'off' ? 'Jam layar penuh' : 'Jam mengambang ' + (LAY_LABEL[m] || m) + ' ' + pct + '%';
       sendCmd({ type: 'layout', mode: m, pct: pct }, label);
     });
   });
@@ -780,6 +825,64 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     if (!now || !now.layout || now.layout === 'off') return;
     var pct = parseInt(this.value, 10) || 25;
     sendCmd({ type: 'layout', mode: now.layout, pct: pct }, 'Ukuran jam ' + pct + '%');
+  });
+  var shareMode = 'full', limitedKey = null;
+  function shareLinkFor(d, key, lim) {
+    var base = location.origin + location.pathname;
+    return base + '#db=' + encodeURIComponent(d.db) + '&k=' + key + '&n=' + encodeURIComponent(devName(d)) + (lim ? '&r=m' : '');
+  }
+  function setShareLink(link, text) {
+    var d = cur();
+    $('shareLink').value = link || '';
+    $('shareWa').href = link ? 'https://wa.me/?text=' + encodeURIComponent(text + ' ' + link) : '#';
+    $('shareWa').style.opacity = link ? '' : '.4';
+    $('shareMore').classList.toggle('hidden', !navigator.share || !link);
+    $('shareMore').onclick = function () {
+      navigator.share({ title: 'Remote ' + devName(d), text: text, url: link }).catch(function () { });
+    };
+  }
+  function renderShare() {
+    var d = cur(); if (!d) return;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-share]'), function (b) { b.classList.toggle('on', b.getAttribute('data-share') === shareMode); });
+    $('shareRevoke').classList.toggle('hidden', shareMode !== 'limited');
+    if (shareMode === 'full') {
+      $('shareDesc').innerHTML = '<b>Akses penuh:</b> penerima bisa mengganti musik, pesan, warna, tampilan dan membunyikan pengumuman. Kirim hanya ke orang yang dipercaya.';
+      setShareLink(shareLinkFor(d, d.k, false), 'Akses remote PENUH ' + devName(d) + ' (Tablet Play). Buka link ini, tablet langsung masuk daftar:');
+      return;
+    }
+    $('shareDesc').innerHTML = '<b>Pesan saja:</b> penerima hanya bisa menampilkan pesan dan membunyikan pengumuman. Musik, warna dan tampilan tidak bisa diubah.';
+    if (limitedKey) { setShareLink(shareLinkFor(d, limitedKey, true), 'Akses kirim pesan ke ' + devName(d) + ' (Tablet Play). Buka link ini:'); return; }
+    setShareLink('', ''); $('shareLink').value = 'Mengambil kode…';
+    fetch(url(d, 'share')).then(function (r) { return r.json(); }).then(function (j) {
+      if (cur() !== d || shareMode !== 'limited') return;
+      if (j && j.limitedKey && j.limitedKey.length >= 20) { limitedKey = j.limitedKey; renderShare(); }
+      else $('shareLink').value = 'Belum tersedia — perbarui aplikasi di tablet (v2.5) dan pastikan tablet online.';
+    }).catch(function () { $('shareLink').value = 'Gagal mengambil kode, coba lagi.'; });
+  }
+  $('shareBtn').addEventListener('click', function () {
+    var d = cur(); if (!d || isLimited(d)) return;
+    var box = $('shareBox');
+    var open = box.classList.contains('hidden');
+    box.classList.toggle('hidden', !open);
+    if (!open) return;
+    limitedKey = null; renderShare();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-share]'), function (b) {
+    b.addEventListener('click', function () { shareMode = b.getAttribute('data-share'); renderShare(); });
+  });
+  $('shareRevoke').addEventListener('click', function () {
+    if (!confirm('Semua orang yang punya link "pesan saja" tidak bisa mengirim pesan lagi. Link baru akan dibuat. Lanjut?')) return;
+    var d = cur(); limitedKey = null; $('shareLink').value = 'Membuat kode baru…';
+    sendCmd({ type: 'newLimitedKey' }, 'Membuat link pesan baru').then(function () {
+      setTimeout(function () { if (cur() === d) renderShare(); }, 2500);
+    });
+  });
+  $('shareCopy').addEventListener('click', function () {
+    var inp = $('shareLink');
+    function done() { toast('Link disalin', 'ok'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(inp.value).then(done).catch(function () { inp.select(); document.execCommand('copy'); done(); });
+    } else { inp.select(); document.execCommand('copy'); done(); }
   });
   $('clockBtn').addEventListener('click', function () { sendCmd({ type: 'clock' }, 'Memunculkan jam'); });
   Array.prototype.forEach.call(document.querySelectorAll('[data-sp]'), function (b) {
@@ -802,7 +905,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   $('plSavePlay').addEventListener('click', function () { savePl(true); });
 
   $('customOn').addEventListener('change', function () { cfg.custom = this.checked; renderEditor(); });
-  $('customText').addEventListener('input', function () { cfg.customText = this.value.substr(0, 60); renderEditor(); });
+  $('customText').addEventListener('input', function () { cfg.customText = this.value.substr(0, 150); renderEditor(); });
   $('bellOn').addEventListener('change', function () { msgOpt.bell = this.checked; store(MSGOPT_KEY, msgOpt); });
   $('twiceOn').addEventListener('change', function () { msgOpt.twice = this.checked; store(MSGOPT_KEY, msgOpt); });
   $('saveQuick').addEventListener('click', function () {
@@ -811,6 +914,11 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     quick.push(t); store(QUICK_KEY, quick); renderChips();
   });
   $('sendBtn').addEventListener('click', function () {
+    if (isLimited(cur())) {
+      var t = (cfg.customText || '').trim();
+      sendCmd({ type: 'msg', text: t, show: !!cfg.custom && !!t, speak: false }, t && cfg.custom ? 'Menampilkan pesan' : 'Menyembunyikan pesan');
+      return;
+    }
     sendConfig().then(function () { toast('Pesan tampil di tablet', 'ok'); $('sendMsg').textContent = ''; })
       .catch(function (e) { toast('Gagal mengirim: ' + e.message, 'bad'); });
   });
@@ -818,6 +926,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     var text = (cfg.customText || '').trim();
     if (!text) { toast('Isi pesannya dulu', 'bad'); return; }
     cfg.custom = true; renderEditor();
+    if (isLimited(cur())) { sendCmd({ type: 'msg', text: text, show: true, speak: true, bell: !!msgOpt.bell, times: msgOpt.twice ? 2 : 1 }, 'Menampilkan & membacakan'); return; }
     sendConfig().then(function () {
       return sendCmd({ type: 'speak', text: text, bell: !!msgOpt.bell, times: msgOpt.twice ? 2 : 1 }, 'Membacakan pesan');
     }).catch(function (e) { toast('Gagal mengirim: ' + e.message, 'bad'); });

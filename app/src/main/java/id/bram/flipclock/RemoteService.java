@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 public class RemoteService extends Service {
 
     static final String CHANNEL = "tabletplay_remote";
-    static final String VER = "2.3";
+    static final String VER = "2.6";
 
     static final String P_ENABLED = "r_enabled";
     static final String P_DB = "r_db";
@@ -43,6 +43,8 @@ public class RemoteService extends Service {
     static final String P_SRC = "r_src";
     static final String P_PLNAME = "r_plname";
     static final String P_LASTCMD = "r_lastcmd";
+    static final String P_LASTCMD_L = "r_lastcmd_l";
+    static final String P_LKEY = "r_lkey";
     static final String P_KEEPFRONT = "r_keepfront";
 
     private volatile boolean running = false;
@@ -82,6 +84,7 @@ public class RemoteService extends Service {
         media = MediaHelper.get(this);
         startForeground(71, buildNotification());
         running = true;
+        ClockOverlay.get(this).apply();
         startSse();
         ui.postDelayed(nowTick, 3000);
         ui.postDelayed(hbTick, 2000);
@@ -110,6 +113,12 @@ public class RemoteService extends Service {
     @Override
     public IBinder onBind(Intent intent) { return null; }
 
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        ClockOverlay.get(this).onConfigChanged();
+    }
+
     private Notification buildNotification() {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26) {
@@ -122,7 +131,7 @@ public class RemoteService extends Service {
         PendingIntent pi = PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0));
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
-        b.setContentTitle("Tablet Play aktif")
+        b.setContentTitle("Tablet Play Overlay aktif")
                 .setContentText("Siap menerima musik & pengumuman dari remote")
                 .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
                 .setOngoing(true)
@@ -147,30 +156,61 @@ public class RemoteService extends Service {
 
     private String path(String part) { return base() + "/clocks/" + key() + "/" + part + ".json"; }
 
+    // ------------------------------------------------------------------ kode akses terbatas
+    /** Kode kedua: pemegangnya hanya boleh kirim pesan & pengumuman suara. */
+    String limitedKey() {
+        String k = prefs().getString(P_LKEY, "");
+        if (k == null || k.length() < 20) {
+            k = newKey();
+            prefs().edit().putString(P_LKEY, k).apply();
+        }
+        return k;
+    }
+
+    static String newKey() {
+        String chars = "abcdefghjkmnpqrstuvwxyz23456789";
+        java.security.SecureRandom r = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 24; i++) sb.append(chars.charAt(r.nextInt(chars.length())));
+        return sb.toString();
+    }
+
+    private String pathFor(String k, String part) { return base() + "/clocks/" + k + "/" + part + ".json"; }
+
     // ------------------------------------------------------------------ SSE (perintah)
     private void closeSse() {
         HttpURLConnection c = sseConn;
         sseConn = null;
-        if (c != null) {
-            new Thread(() -> { try { c.disconnect(); } catch (Exception ignored) { } }).start();
-        }
+        if (c != null) new Thread(() -> { try { c.disconnect(); } catch (Exception ignored) { } }).start();
+        HttpURLConnection c2 = sseConnL;
+        sseConnL = null;
+        if (c2 != null) new Thread(() -> { try { c2.disconnect(); } catch (Exception ignored) { } }).start();
     }
+
+    private volatile HttpURLConnection sseConnL = null;
 
     private void startSse() {
         final int gen = ++generation;
         closeSse();
+        startSseLoop(gen, false);
+        startSseLoop(gen, true);
+    }
+
+    /** limited=false → kode penuh, limited=true → kode pesan saja. */
+    private void startSseLoop(final int gen, final boolean limited) {
         new Thread(() -> {
             while (running && gen == generation) {
                 if (!enabled()) { sleep(5000); continue; }
                 HttpURLConnection con = null;
                 try {
-                    URL u = new URL(path("cmd"));
+                    String k = limited ? limitedKey() : key();
+                    URL u = new URL(pathFor(k, "cmd"));
                     con = (HttpURLConnection) u.openConnection();
                     con.setRequestProperty("Accept", "text/event-stream");
                     con.setConnectTimeout(15000);
                     con.setReadTimeout(90000);   // Firebase kirim keep-alive tiap ±30 detik
                     con.setInstanceFollowRedirects(true);
-                    sseConn = con;
+                    if (limited) sseConnL = con; else sseConn = con;
                     BufferedReader r = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
                     String event = null;
                     StringBuilder data = new StringBuilder();
@@ -183,7 +223,7 @@ public class RemoteService extends Service {
                             data.append(line.substring(5).trim());
                         } else if (line.isEmpty()) {
                             if ("put".equals(event)) {
-                                handleSse(data.toString(), first);
+                                handleSse(data.toString(), first, limited, k);
                                 first = false;
                             } else if ("cancel".equals(event) || "auth_revoked".equals(event)) {
                                 break;
@@ -201,23 +241,30 @@ public class RemoteService extends Service {
         }).start();
     }
 
-    private void handleSse(String json, boolean first) {
+    private void handleSse(String json, boolean first, final boolean limited, final String k) {
         try {
             JSONObject msg = new JSONObject(json);
             if (!"/".equals(msg.optString("path"))) return;
             JSONObject c = msg.optJSONObject("data");
             if (c == null) return;
             final String id = c.optString("id", "");
-            if (id.isEmpty() || id.equals(prefs().getString(P_LASTCMD, ""))) return;
+            String lastKey = limited ? P_LASTCMD_L : P_LASTCMD;
+            if (id.isEmpty() || id.equals(prefs().getString(lastKey, ""))) return;
             long ts = c.optLong("ts", 0);
             long age = ts > 0 ? Math.abs(System.currentTimeMillis() - ts) : 0;
-            prefs().edit().putString(P_LASTCMD, id).apply();
+            prefs().edit().putString(lastKey, id).apply();
             // perintah lama (tablet sempat offline) jangan dijalankan
             if ((first && age > 120000) || age > 600000) return;
             final JSONObject cmd = c;
             ui.post(() -> {
-                String[] res = runCmd(cmd);
-                ack(id, "ok".equals(res[0]), res[1]);
+                String type = cmd.optString("type");
+                String[] res;
+                if (limited && !"msg".equals(type) && !"speak".equals(type)) {
+                    res = new String[]{"fail", "Akses terbatas: hanya pesan & pengumuman"};
+                } else {
+                    res = runCmd(cmd);
+                }
+                ack(k, id, "ok".equals(res[0]), res[1]);
                 ui.postDelayed(nowTick, 1200);
             });
         } catch (Exception ignored) { }
@@ -238,6 +285,32 @@ public class RemoteService extends Service {
                     if ("not-ready".equals(st)) return new String[]{"fail", "Mesin suara tablet belum siap"};
                     media.speak(text, c.optBoolean("bell", true), c.optInt("times", 1) == 2 ? 2 : 1);
                     return new String[]{"ok", "no-lang".equals(st) ? "Dibacakan, tapi suara Indonesia belum terpasang" : "Dibacakan"};
+                }
+                case "msg": {
+                    String text = c.optString("text", "").trim();
+                    if (text.length() > 150) text = text.substring(0, 150);
+                    boolean show = c.optBoolean("show", true) && !text.isEmpty();
+                    JSONObject patch = new JSONObject();
+                    patch.put("customText", text);
+                    patch.put("custom", show);
+                    JSONObject sv = new JSONObject();
+                    sv.put(".sv", "timestamp");
+                    patch.put("updatedAt", sv);
+                    patch.put("by", "remote");
+                    patchJson(path("config"), patch.toString());
+                    String extra = "";
+                    if (c.optBoolean("speak", false) && !text.isEmpty()) {
+                        String st = media.ttsStatus();
+                        media.speak(text, c.optBoolean("bell", true), c.optInt("times", 1) == 2 ? 2 : 1);
+                        extra = "no-lang".equals(st) ? " dan dibacakan (suara Indonesia belum terpasang)" : " dan dibacakan";
+                    }
+                    return new String[]{"ok", (show ? "Pesan tampil" : "Pesan disembunyikan") + extra};
+                }
+                case "newLimitedKey": {
+                    prefs().edit().putString(P_LKEY, newKey()).apply();
+                    heartbeat();
+                    ui.postDelayed(this::startSse, 1500);
+                    return new String[]{"ok", "Kode akses pesan dibuat ulang"};
                 }
                 case "media": {
                     String r = media.command(p.getString(P_SRC, "youtube"), c.optString("cmd"));
@@ -273,6 +346,22 @@ public class RemoteService extends Service {
                     showClock();
                     return new String[]{"ok", "Jam dimunculkan"};
                 }
+                case "layout": {
+                    String mode = c.optString("mode", "off");
+                    ClockOverlay ov = ClockOverlay.get(this);
+                    String r = ov.setMode(mode, c.optInt("pct", 0));
+                    if ("off".equals(ov.mode())) {
+                        showClock();
+                        return new String[]{"ok", "Jam layar penuh"};
+                    }
+                    // aplikasi utama sedang tampil → pindahkan ke belakang agar jam mengambang terlihat
+                    android.app.Activity a = media.activity;
+                    if (a != null && MainActivity.visible) {
+                        a.runOnUiThread(() -> a.moveTaskToBack(true));
+                    }
+                    return new String[]{"ok".equals(r) ? "ok" : "fail",
+                            "ok".equals(r) ? ("Jam mengambang " + (ClockOverlay.label(ov.mode()) + " ") + ov.pct() + "%") : r};
+                }
                 default:
                     return new String[]{"fail", "Perintah tidak dikenal"};
             }
@@ -287,6 +376,7 @@ public class RemoteService extends Service {
 
     /** Setelah membuka aplikasi musik, pastikan jam tetap tampil di sisi sebelah. */
     private void keepClockVisible() {
+        if (!"off".equals(ClockOverlay.get(this).mode())) return;   // jam mengambang selalu tampil
         if (!prefs().getBoolean(P_KEEPFRONT, true)) return;
         ui.postDelayed(() -> { if (!MainActivity.visible) showClock(); }, 3000);
         ui.postDelayed(() -> { if (!MainActivity.visible) showClock(); }, 7000);
@@ -382,7 +472,11 @@ public class RemoteService extends Service {
         now.put("acts", info.optString("acts", ""));
         now.put("spres", info.optString("spres", ""));
         now.put("queue", info.optString("queue", ""));
-        now.put("clock", MainActivity.visible);
+        ClockOverlay ov = ClockOverlay.get(this);
+        now.put("clock", MainActivity.visible || ov.isShowing());
+        now.put("layout", ov.mode());
+        now.put("pct", ov.pct());
+        now.put("overlayPerm", ov.canDraw());
         now.put("ver", VER);
         String art = info.optString("art", "");
         String k = now.toString();
@@ -409,10 +503,18 @@ public class RemoteService extends Service {
             o.put("batt", bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY));
             o.put("charging", bm.isCharging());
             put(path("status"), o.toString(), null);
+            // status untuk pemegang akses terbatas + kode terbatas untuk pemegang akses penuh
+            JSONObject ol = new JSONObject(o.toString());
+            ol.put("lastSeen", sv);
+            ol.put("limited", true);
+            put(pathFor(limitedKey(), "status"), ol.toString(), null);
+            JSONObject share = new JSONObject();
+            share.put("limitedKey", limitedKey());
+            put(path("share"), share.toString(), null);
         } catch (Exception ignored) { }
     }
 
-    private void ack(String id, boolean ok, String msg) {
+    private void ack(String k, String id, boolean ok, String msg) {
         try {
             JSONObject o = new JSONObject();
             o.put("id", id);
@@ -421,7 +523,7 @@ public class RemoteService extends Service {
             JSONObject sv = new JSONObject();
             sv.put(".sv", "timestamp");
             o.put("at", sv);
-            put(path("cmdAck"), o.toString(), null);
+            put(pathFor(k, "cmdAck"), o.toString(), null);
         } catch (Exception ignored) { }
     }
 
@@ -442,6 +544,28 @@ public class RemoteService extends Service {
                 if (code >= 300 && onFail != null) ui.post(onFail);
             } catch (Exception e) {
                 if (onFail != null) ui.post(onFail);
+            } finally {
+                if (con != null) try { con.disconnect(); } catch (Exception ignored) { }
+            }
+        }).start();
+    }
+
+    private void patchJson(final String url, final String body) {
+        new Thread(() -> {
+            HttpURLConnection con = null;
+            try {
+                con = (HttpURLConnection) new URL(url).openConnection();
+                con.setRequestMethod("POST");
+                con.setRequestProperty("X-HTTP-Method-Override", "PATCH");
+                con.setDoOutput(true);
+                con.setConnectTimeout(15000);
+                con.setReadTimeout(15000);
+                con.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                OutputStream os = con.getOutputStream();
+                os.write(body.getBytes(StandardCharsets.UTF_8));
+                os.close();
+                con.getResponseCode();
+            } catch (Exception ignored) {
             } finally {
                 if (con != null) try { con.disconnect(); } catch (Exception ignored) { }
             }
