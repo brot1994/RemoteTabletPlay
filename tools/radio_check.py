@@ -31,3 +31,44 @@ for st in seen.values():
 out.sort(key=lambda r: (r["name"] or "").lower())
 json.dump(out, open("tools/radio-check.json", "w"), indent=1, ensure_ascii=False)
 print(len(out), "stations")
+
+# ---- uji mendalam link tambahan (HLS diikuti sampai segmen audio, SSL dicek dua cara)
+import ssl, subprocess
+def fetch(url, verify=True, n=20000):
+    ctx = None if verify else ssl._create_unverified_context()
+    r = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=10, context=ctx)
+    return r.headers.get("Content-Type", ""), r.read(n), r.geturl()
+def deep(url):
+    res = {"url": url}
+    for verify in (True, False):
+        try:
+            ct, data, final = fetch(url, verify)
+            res["verify" if verify else "noverify"] = "ok"
+            res["ct"] = ct; res["bytes"] = len(data)
+            if data[:7] == b"#EXTM3U":
+                txt = data.decode("utf8", "replace"); res["m3u8"] = txt[:400]
+                cur = final
+                for depth in range(3):
+                    lines = [l for l in txt.splitlines() if l and not l.startswith("#")]
+                    if not lines: break
+                    nxt = urllib.parse.urljoin(cur, lines[-1 if depth else 0])
+                    ct2, d2, cur = fetch(nxt, verify, 200000)
+                    if d2[:7] == b"#EXTM3U": txt = d2.decode("utf8", "replace"); continue
+                    res["segment"] = {"url": nxt, "ct": ct2, "bytes": len(d2)}; break
+            break
+        except Exception as e:
+            res["verify" if verify else "noverify"] = str(e)[:150]
+    host = urllib.parse.urlparse(url)
+    if host.scheme == "https":
+        try:
+            o = subprocess.run(["openssl", "s_client", "-connect", f"{host.hostname}:{host.port or 443}", "-servername", host.hostname, "-showcerts"],
+                               input=b"", capture_output=True, timeout=15).stdout.decode("latin1")
+            res["chain"] = [l.strip() for l in o.splitlines() if l.strip().startswith(("s:", "i:"))][:8]
+        except Exception as e:
+            res["chain"] = str(e)
+    return res
+try:
+    extra = [l.strip() for l in open("tools/radio_extra.txt") if l.strip()]
+except FileNotFoundError:
+    extra = []
+json.dump([deep(u) for u in extra], open("tools/radio-extra.json", "w"), indent=1, ensure_ascii=False)

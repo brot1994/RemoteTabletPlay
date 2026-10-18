@@ -1,0 +1,13 @@
+https://ic.mari.co.id:8443/genfm
+https://ic.mari.co.id:8443/jakfm
+http://ic.mari.co.id:8000/genfm
+http://ic.mari.co.id:8000/jakfm
+https://wz.mari.co.id:1936/noice_jakfm/jakfm/playlist.m3u8
+https://wz.mari.co.id:1936/noice_genfm/genfm/playlist.m3u8
+http://103.246.184.62:1935/noice_genfm/genfm/playlist.m3u8
+http://103.246.184.62:1935/noice_jakfm/jakfm/playlist.m3u8
+https://stream.rcs.revma.com/h77wwp48kxcwv
+https://stream.rcs.revma.com/k02rmq48kxcwv
+https://sonora-radio.arenastreaming.com/8130/stream
+https://stream-ssl.arenastreaming.com:8000/jakarta
+https://c5.siar.us/proxy/ssfm/stream
