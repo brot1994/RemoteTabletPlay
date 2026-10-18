@@ -34,6 +34,7 @@
     </div>
     <canvas id="rviz" aria-hidden="true"></canvas>
   </div>
+  <div id="camdot" class="hidden"><span></span>Kamera aktif</div>
   <div id="dim"></div>
   <div id="netdot" title="Remote terputus"></div>
   <button id="gear" aria-label="Buka pengaturan">
@@ -151,6 +152,15 @@
     </section>
 
     <section>
+      <h3>Kamera (lihat dari remote)</h3>
+      <div class="box pad">
+        <div class="status"><span id="camPermDot" class="sdot"></span><span id="camPermText"></span></div>
+        <button class="btn" id="camPermBtn">Izinkan kamera</button>
+        <div class="hint">Setelah diizinkan, kamera tablet bisa dilihat live dari halaman remote (hanya pemegang akses penuh). Selama dilihat, di pojok layar muncul tanda <b>"Kamera aktif"</b>.</div>
+      </div>
+    </section>
+
+    <section>
       <h3>Tampilan</h3>
       <div class="box" id="toggleBox"></div>
     </section>
@@ -183,7 +193,7 @@
       </div>
     </section>
 
-    <div class="ver">Tablet Play v1.8 · ketuk layar untuk memunculkan tombol pengaturan</div>
+    <div class="ver">Tablet Play v1.9 · ketuk layar untuk memunculkan tombol pengaturan</div>
   </div>
 </div>
 

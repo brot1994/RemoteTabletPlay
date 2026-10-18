@@ -202,6 +202,7 @@ class ClockOverlay {
         @JavascriptInterface public boolean hasMediaAccess() { return MediaHelper.get(ctx).hasMediaAccess(); }
         @JavascriptInterface public String ttsStatus() { return MediaHelper.get(ctx).ttsStatus(); }
         @JavascriptInterface public boolean isSpeaking() { return MediaHelper.get(ctx).speaking; }
+        @JavascriptInterface public boolean camActive() { return CamStreamer.get(ctx).active(); }
 
         /** Info radio untuk tampilan di jam (JSON). */
         @JavascriptInterface

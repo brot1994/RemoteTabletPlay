@@ -25,7 +25,21 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build release APK
-        run: gradle :app:assembleRelease --no-daemon
+        run: |
+          set -o pipefail
+          gradle :app:assembleRelease --no-daemon 2>&1 | tee build.log
+
+      - name: Simpan log kalau build gagal
+        if: failure()
+        run: |
+          mkdir -p tools
+          grep -n -i -B2 -A12 "error\|failed\|what went wrong" build.log | head -400 > tools/build-log.txt || tail -300 build.log > tools/build-log.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/build-log.txt
+          git commit -m "Log build gagal [skip ci]" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
 
       - name: Rename APK
         run: |

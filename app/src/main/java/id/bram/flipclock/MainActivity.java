@@ -94,8 +94,16 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 51 && CamStreamer.hasPermission(this)) RemoteService.refreshForeground(this);
+        if (web != null) web.evaluateJavascript("window.onCamPerm && window.onCamPerm()", null);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        if (CamStreamer.hasPermission(this)) RemoteService.refreshForeground(this);
         hideSystemUi();
         if (web != null) {
             web.onResume();
@@ -277,6 +285,32 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public boolean isSpeaking() { return media.speaking; }
+
+        @JavascriptInterface
+        public boolean camActive() { return CamStreamer.get(MainActivity.this).active(); }
+
+        @JavascriptInterface
+        public boolean hasCamPermission() { return CamStreamer.hasPermission(MainActivity.this); }
+
+        @JavascriptInterface
+        public void requestCamPermission() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 23 && !CamStreamer.hasPermission(MainActivity.this)) {
+                    if (shouldShowRequestPermissionRationale(android.Manifest.permission.CAMERA)
+                            || !getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("cam_asked", false)) {
+                        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean("cam_asked", true).apply();
+                        requestPermissions(new String[]{android.Manifest.permission.CAMERA}, 51);
+                    } else {
+                        // pernah ditolak permanen → buka pengaturan aplikasi
+                        try {
+                            Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    android.net.Uri.parse("package:" + getPackageName()));
+                            startActivity(i);
+                        } catch (Exception ignored) { }
+                    }
+                }
+            });
+        }
 
         /** Info radio untuk tampilan di jam (JSON). */
         @JavascriptInterface

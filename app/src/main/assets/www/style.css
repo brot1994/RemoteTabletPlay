@@ -255,3 +255,9 @@ h3 {
 #radio.col { flex-direction: column; }
 #radio.col #rviz { flex: 1 1 0; min-height: 0; height: 0; }
 #radio.noname #rname, #radio.noname #rstate::after { display: none; }
+
+/* ---------- Tanda kamera aktif ---------- */
+#camdot { position: fixed; left: 14px; top: 12px; display: flex; align-items: center; gap: 7px; padding: 5px 11px 5px 9px; border-radius: 99px;
+  background: rgba(0,0,0,.55); color: #fff; font: 600 13px/1 'Archivo', sans-serif; letter-spacing: .02em; pointer-events: none; z-index: 5; }
+#camdot.hidden { display: none; }
+#camdot span { width: 9px; height: 9px; border-radius: 50%; background: #FF3B30; animation: rpulse 1.6s ease-in-out infinite; }

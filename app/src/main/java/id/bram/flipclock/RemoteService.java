@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 public class RemoteService extends Service {
 
     static final String CHANNEL = "tabletplay_remote";
-    static final String VER = "2.8";
+    static final String VER = "2.9";
 
     static final String P_ENABLED = "r_enabled";
     static final String P_DB = "r_db";
@@ -53,6 +53,7 @@ public class RemoteService extends Service {
     private Handler ui;
     private MediaHelper media;
     private RadioPlayer radio;
+    private CamStreamer cam;
     private String lastNowKey = "";
     private String lastArt = "";
 
@@ -84,7 +85,9 @@ public class RemoteService extends Service {
         ui = new Handler(Looper.getMainLooper());
         media = MediaHelper.get(this);
         radio = RadioPlayer.get(this);
-        startForeground(71, buildNotification());
+        cam = CamStreamer.get(this);
+        cam.setListener(on -> ui.post(() -> { lastNowKey = ""; ui.postDelayed(nowTick, 300); }));
+        goForeground();
         running = true;
         ClockOverlay.get(this).apply();
         startSse();
@@ -94,6 +97,7 @@ public class RemoteService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && intent.getBooleanExtra("refg", false)) goForeground();
         if (intent != null && intent.getBooleanExtra("restart", false)) {
             lastNowKey = "";
             startSse();
@@ -103,9 +107,45 @@ public class RemoteService extends Service {
         return START_STICKY;
     }
 
+    /** Izin kamera sudah diberikan → naikkan layanan supaya kamera boleh dipakai di latar belakang. */
+    static void refreshForeground(Context c) {
+        Intent i = new Intent(c, RemoteService.class);
+        i.putExtra("refg", true);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i);
+            else c.startService(i);
+        } catch (Exception ignored) { }
+    }
+
+    private boolean camFg = false;
+
+    private void goForeground() {
+        Notification n = buildNotification();
+        boolean camOk = CamStreamer.hasPermission(this);
+        if (Build.VERSION.SDK_INT >= 34) {
+            int t = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;
+            if (camOk) {
+                try {
+                    startForeground(71, n, t | android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA);
+                    camFg = true;
+                    return;
+                } catch (Exception ignored) { }   // mis. dimulai dari latar belakang
+            }
+            camFg = false;
+            try { startForeground(71, n, t); } catch (Exception ignored) { }
+        } else if (Build.VERSION.SDK_INT >= 30 && camOk) {
+            try { startForeground(71, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA); camFg = true; }
+            catch (Exception e) { startForeground(71, n); camFg = false; }
+        } else {
+            startForeground(71, n);
+            camFg = camOk;
+        }
+    }
+
     @Override
     public void onDestroy() {
         running = false;
+        cam.stop();
         generation++;
         closeSse();
         ui.removeCallbacksAndMessages(null);
@@ -364,6 +404,38 @@ public class RemoteService extends Service {
                     keepClockVisible();
                     return new String[]{r.startsWith("ok") ? "ok" : "fail", r};
                 }
+                case "cam": {
+                    final String sid = c.optString("sid", "");
+                    String sdp = c.optString("sdp", "");
+                    if (sid.isEmpty() || sdp.isEmpty()) return new String[]{"fail", "Data sambungan kosong"};
+                    if (!CamStreamer.hasPermission(this)) {
+                        return new String[]{"fail", "Izin kamera belum diberikan. Buka aplikasi di tablet → pengaturan → Izinkan kamera"};
+                    }
+                    if (!camFg) goForeground();
+                    cam.start(sid, sdp, !"back".equals(c.optString("facing", "front")),
+                            CamStreamer.iceServers(c.optJSONArray("ice")), c.optInt("q", 1),
+                            (answer, err) -> {
+                                try {
+                                    JSONObject o = new JSONObject();
+                                    o.put("sid", sid);
+                                    if (answer != null) o.put("sdp", answer); else o.put("error", err);
+                                    JSONObject sv = new JSONObject();
+                                    sv.put(".sv", "timestamp");
+                                    o.put("at", sv);
+                                    put(path("camAnswer"), o.toString(), null);
+                                } catch (Exception ignored) { }
+                            });
+                    return new String[]{"ok", camFg ? "Menyalakan kamera" : "Menyalakan kamera (buka aplikasi di tablet sekali kalau gambar tidak muncul)"};
+                }
+                case "camStop": {
+                    cam.stop(c.optString("sid", ""));
+                    return new String[]{"ok", "Kamera dimatikan"};
+                }
+                case "camSwitch": {
+                    if (!cam.active()) return new String[]{"fail", "Kamera sedang tidak aktif"};
+                    cam.switchCamera();
+                    return new String[]{"ok", "Ganti kamera"};
+                }
                 case "clock": {
                     showClock();
                     return new String[]{"ok", "Jam dimunculkan"};
@@ -513,6 +585,9 @@ public class RemoteService extends Service {
         now.put("pct", ov.pct());
         now.put("overlayPerm", ov.canDraw());
         now.put("ver", VER);
+        now.put("camPerm", CamStreamer.hasPermission(this));
+        now.put("cam", cam.active());
+        now.put("camSt", cam.status());
         String art = info.optString("art", "");
         String k = now.toString();
         if (k.equals(lastNowKey) && art.equals(lastArt)) return;

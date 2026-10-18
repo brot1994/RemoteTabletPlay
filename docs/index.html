@@ -91,6 +91,12 @@ h2 { margin: 0 0 10px 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.
 .chip .t { padding: 8px 4px 8px 12px; }
 .chip .x { padding: 8px 10px 8px 6px; color: var(--muted); font-size: 15px; }
 .linkbtn { border: none; background: none; color: var(--ink); text-decoration: underline; font-size: 13px; font-weight: 500; cursor: pointer; padding: 6px 0; align-self: flex-start; min-height: 32px; }
+.btn.danger-solid { background: #B42318; border-color: #B42318; color: #fff; }
+.camwrap { position: relative; background: #111; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; margin-bottom: 10px; }
+.camwrap video { width: 100%; height: 100%; object-fit: contain; display: block; background: #111; }
+#camOverlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #C9C8C3; font-size: 14px; }
+#camLive { position: absolute; left: 10px; top: 10px; background: #D92D20; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .08em; padding: 4px 8px; border-radius: 6px; }
+#camTime { position: absolute; right: 10px; top: 10px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .btn { min-height: 54px; border-radius: 12px; border: none; background: var(--ink); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; }
 .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
@@ -221,6 +227,33 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       </div>
     </section>
 
+    <section id="camSec" class="hidden">
+      <h2>Kamera</h2>
+      <div class="box pad">
+        <div class="camwrap">
+          <video id="camVideo" autoplay playsinline muted></video>
+          <div id="camOverlay">Kamera mati. Tekan "Lihat kamera".</div>
+          <div id="camLive" class="hidden">● LIVE</div>
+          <div id="camTime" class="hidden"></div>
+        </div>
+        <div class="two">
+          <button class="btn" id="camBtn">Lihat kamera</button>
+          <button class="btn ghost" id="camSwitch">Ganti depan/belakang</button>
+        </div>
+        <div class="two" style="margin-top:8px">
+          <button class="btn2" id="camFull">Layar penuh</button>
+          <button class="btn2" id="camShot">Simpan foto</button>
+        </div>
+        <label class="row" style="cursor:default">
+          <span class="rl">Kualitas video</span>
+          <select id="camQ" class="txt" style="width:150px;padding:0 10px">
+            <option value="0">Hemat kuota</option><option value="1" selected>Sedang</option><option value="2">Tajam (HD)</option>
+          </select>
+        </label>
+        <div class="msg" id="camMsg"></div>
+      </div>
+    </section>
+
     <section id="layoutSec" class="hidden">
       <h2>Tampilan jam di tablet</h2>
       <div class="box pad">
@@ -298,6 +331,14 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
           <button class="btn2" data-sp="search">Cara 3: cari nama playlist</button>
           <button class="btn2" data-sp="open">Cara 4: buka lalu play</button>
         </div>
+        </div>
+        <div id="turnBox" style="margin-top:8px">
+          <div class="lbl"><b>Server TURN (opsional, untuk kamera)</b> — isi hanya kalau kamera sering gagal tersambung saat HP memakai data seluler. Disimpan di HP ini saja.</div>
+          <input class="txt" id="turnUrl" type="text" placeholder="turn:alamat-server:3478" autocomplete="off">
+          <div class="two" style="margin-top:6px">
+            <input class="txt" id="turnUser" type="text" placeholder="username" autocomplete="off">
+            <input class="txt" id="turnPass" type="text" placeholder="password" autocomplete="off">
+          </div>
         </div>
         <button class="btn2 danger" id="removeBtn">Hapus tablet ini dari daftar di HP ini</button>
       </div>
@@ -468,13 +509,14 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   function applyRole() {
     var lim = isLimited(cur());
-    ['musicSec', 'pvSec', 'colorsDet', 'shareBtn', 'checkBox'].forEach(function (id) { if ($(id)) $(id).classList.toggle('hidden', lim && id !== 'checkBox'); });
+    ['musicSec', 'pvSec', 'colorsDet', 'shareBtn', 'checkBox', 'camSec', 'turnBox'].forEach(function (id) { if ($(id)) $(id).classList.toggle('hidden', lim && id !== 'checkBox'); });
     $('limitedNote').classList.toggle('hidden', !lim);
     if (lim) $('layoutSec').classList.add('hidden');
     $('manageSpotify').classList.toggle('hidden', lim);
   }
 
   function selectDevice() {
+    camStop(false);
     now = null; playlists = {};
     if ($('shareBox')) $('shareBox').classList.add('hidden');
     applyRole();
@@ -487,6 +529,158 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     }
     loadConfig(); loadPlaylists(); listenNow(); refreshStatus();
   }
+
+  // ---------------------------------------------------------------- kamera live (WebRTC: HP ↔ tablet langsung)
+  var TURN_KEY = 'rtp_turn_v1';
+  var camPc = null, camSid = '', camFacing = 'front', camT0 = 0, camTimer = null;
+  function turnCfg() {
+    var t = load(TURN_KEY, null);
+    return t && t.urls ? t : null;
+  }
+  function camUi(state, msg) {
+    var live = state === 'live';
+    $('camLive').classList.toggle('hidden', !live);
+    $('camTime').classList.toggle('hidden', !live);
+    $('camOverlay').style.display = live ? 'none' : 'flex';
+    $('camOverlay').textContent = msg || (state === 'off' ? 'Kamera mati. Tekan "Lihat kamera".' : 'Menyambungkan ke kamera tablet…');
+    $('camBtn').textContent = state === 'off' ? 'Lihat kamera' : 'Matikan kamera';
+    $('camBtn').className = state === 'off' ? 'btn' : 'btn danger-solid';
+    clearInterval(camTimer);
+    if (live) {
+      camT0 = Date.now();
+      camTimer = setInterval(function () {
+        var s = Math.floor((Date.now() - camT0) / 1000);
+        $('camTime').textContent = Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2);
+      }, 1000);
+    }
+  }
+  function renderCam() {
+    var d = cur();
+    var show = !!d && !isLimited(d) && !!now && typeof now.camPerm === 'boolean';
+    $('camSec').classList.toggle('hidden', !show);
+    if (!show) return;
+    $('camMsg').textContent = now.camPerm ? '' : 'Kamera tablet belum diizinkan. Di tablet: ketuk layar → ikon pengaturan → Kamera → "Izinkan kamera".';
+    $('camMsg').className = 'msg' + (now.camPerm ? '' : ' err');
+    $('camBtn').disabled = !now.camPerm && !camPc;
+  }
+  function waitIce(pc, ms) {
+    return new Promise(function (res) {
+      if (pc.iceGatheringState === 'complete') return res();
+      var t = setTimeout(res, ms);
+      pc.addEventListener('icegatheringstatechange', function () {
+        if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); }
+      });
+    });
+  }
+  function waitAnswer(d, sid) {
+    var tries = 0;
+    return new Promise(function (res) {
+      (function poll() {
+        if (camSid !== sid) return res(null);
+        tries++;
+        fetch(url(d, 'camAnswer')).then(function (r) { return r.json(); }).then(function (a) {
+          if (a && a.sid === sid) return res(a);
+          if (tries < 40) setTimeout(poll, 600); else res(null);
+        }).catch(function () { if (tries < 40) setTimeout(poll, 900); else res(null); });
+      })();
+    });
+  }
+  function camStart() {
+    var d = cur(); if (!d || isLimited(d)) return;
+    if (!window.RTCPeerConnection) { toast('Browser HP ini tidak mendukung video live', 'bad'); return; }
+    camStop(false);
+    var sid = rid(); camSid = sid;
+    var turn = turnCfg();
+    var ice = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+    if (turn) ice.push(turn);
+    var pc = new RTCPeerConnection({ iceServers: ice });
+    camPc = pc;
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.ontrack = function (e) {
+      var v = $('camVideo');
+      v.srcObject = e.streams && e.streams[0] ? e.streams[0] : new MediaStream([e.track]);
+      var pl = v.play(); if (pl && pl.catch) pl.catch(function () { });
+    };
+    pc.onconnectionstatechange = function () {
+      if (camPc !== pc) return;
+      var st = pc.connectionState;
+      if (st === 'connected') camUi('live');
+      else if (st === 'disconnected') camUi('wait', 'Sambungan terputus, mencoba lagi…');
+      else if (st === 'failed') {
+        camStop(true);
+        camUi('off', 'Gagal tersambung ke kamera. Coba lagi. Kalau HP memakai data seluler dan sering gagal, coba pakai Wi-Fi atau isi server TURN di "Kelola tablet ini".');
+      }
+    };
+    camUi('wait');
+    pc.createOffer().then(function (o) { return pc.setLocalDescription(o); })
+      .then(function () { return waitIce(pc, 2500); })
+      .then(function () {
+        if (camSid !== sid) return null;
+        return sendCmd({ type: 'cam', sid: sid, sdp: pc.localDescription.sdp, facing: camFacing, q: parseInt($('camQ').value, 10) || 1, ice: turn ? [turn] : [] }, 'Menyalakan kamera');
+      })
+      .then(function (ack) {
+        if (camSid !== sid) return null;
+        if (!ack || !ack.ok) { camStop(false); camUi('off', ack && ack.msg ? ack.msg : 'Tablet tidak menjawab. Pastikan tablet online.'); return null; }
+        return waitAnswer(d, sid);
+      })
+      .then(function (ans) {
+        if (camSid !== sid || ans === undefined) return;
+        if (!ans) { if (camPc === pc) { camStop(true); camUi('off', 'Kamera tablet tidak menjawab. Coba lagi.'); } return; }
+        if (ans.error) { camStop(false); camUi('off', ans.error); return; }
+        return pc.setRemoteDescription({ type: 'answer', sdp: ans.sdp });
+      })
+      .catch(function (e) { if (camSid === sid) { camStop(true); camUi('off', 'Gagal: ' + e.message); } });
+  }
+  function camStop(tellTablet) {
+    var d = cur(), sid = camSid;
+    camSid = '';
+    if (camPc) { try { camPc.close(); } catch (e) { } camPc = null; }
+    var v = $('camVideo'); if (v) v.srcObject = null;
+    if (tellTablet && sid && d) {
+      fetch(url(d, 'cmd'), { method: 'PUT', keepalive: true, body: JSON.stringify({ type: 'camStop', sid: sid, id: rid(), ts: { '.sv': 'timestamp' } }) }).catch(function () { });
+    }
+    if ($('camBtn')) camUi('off');
+  }
+  $('camBtn').addEventListener('click', function () { if (camPc) camStop(true); else camStart(); });
+  $('camSwitch').addEventListener('click', function () {
+    camFacing = camFacing === 'front' ? 'back' : 'front';
+    if (camPc) sendCmd({ type: 'camSwitch' }, 'Ganti kamera');
+    else toast('Kamera ' + (camFacing === 'front' ? 'depan' : 'belakang') + ' dipakai saat dinyalakan', 'ok');
+  });
+  $('camFull').addEventListener('click', function () {
+    var v = $('camVideo'), w = v.parentNode;
+    if (w.requestFullscreen) w.requestFullscreen().catch(function () { });
+    else if (w.webkitRequestFullscreen) w.webkitRequestFullscreen();
+    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+  });
+  $('camShot').addEventListener('click', function () {
+    var v = $('camVideo');
+    if (!camPc || !v.videoWidth) { toast('Nyalakan kamera dulu', 'bad'); return; }
+    var c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    var dt = new Date(), p2 = function (n) { return ('0' + n).slice(-2); };
+    var name = 'kamera-' + dt.getFullYear() + p2(dt.getMonth() + 1) + p2(dt.getDate()) + '-' + p2(dt.getHours()) + p2(dt.getMinutes()) + p2(dt.getSeconds()) + '.jpg';
+    c.toBlob(function (b) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(b); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      toast('Foto disimpan', 'ok');
+    }, 'image/jpeg', 0.9);
+  });
+  // halaman ditutup / disembunyikan → kamera tablet dimatikan (hemat kuota & privasi)
+  document.addEventListener('visibilitychange', function () { if (document.hidden && camPc) camStop(true); });
+  window.addEventListener('pagehide', function () { if (camPc) camStop(true); });
+  (function () {
+    var t = load(TURN_KEY, {}) || {};
+    $('turnUrl').value = t.urls || ''; $('turnUser').value = t.username || ''; $('turnPass').value = t.credential || '';
+    function saveTurn() {
+      var u = $('turnUrl').value.trim();
+      store(TURN_KEY, u ? { urls: u, username: $('turnUser').value.trim(), credential: $('turnPass').value.trim() } : {});
+    }
+    ['turnUrl', 'turnUser', 'turnPass'].forEach(function (id) { $(id).addEventListener('change', saveTurn); });
+  })();
 
   // ---------------------------------------------------------------- toast & commands
   var toastT = null;
@@ -601,6 +795,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   function renderNow() {
     renderLayout();
+    renderCam();
     var playing = now && (now.state === 'playing' || now.state === 'buffering');
     var srcName = '';
     if (now && now.src) { var s = SOURCES.filter(function (x) { return x.id === now.src; })[0]; srcName = s ? s.label : ''; }

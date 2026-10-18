@@ -392,6 +392,11 @@
     return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')';
   }
   setInterval(pollRadio, 1000);
+  function pollCam() {
+    var on = !!(AND && AND.camActive && AND.camActive());
+    $('camdot').classList.toggle('hidden', !on);
+  }
+  setInterval(pollCam, 1000);
   setTimeout(pollRadio, 300);
 
   function tick(animate) {
@@ -887,6 +892,7 @@
     });
     $('accBtn').addEventListener('click', function () { if (AND && AND.openMediaAccess) AND.openMediaAccess(); });
     $('ttsBtn').addEventListener('click', function () { if (AND && AND.openTtsSettings) AND.openTtsSettings(); });
+    $('camPermBtn').addEventListener('click', function () { if (AND && AND.requestCamPermission) AND.requestCamPermission(); setTimeout(syncCam, 1500); });
     var modeBtns = $('modeSeg').getElementsByTagName('button');
     for (var mb = 0; mb < modeBtns.length; mb++) {
       modeBtns[mb].addEventListener('click', function () {
@@ -945,7 +951,17 @@
   }
 
   var lastQr = '';
+  function syncCam() {
+    var ok = !!(AND && AND.hasCamPermission && AND.hasCamPermission());
+    var has = !!(AND && AND.hasCamPermission);
+    $('camPermDot').className = 'sdot ' + (ok ? 'ok' : 'wait');
+    $('camPermText').textContent = !has ? 'Tidak tersedia di versi ini' : ok ? 'Kamera diizinkan — bisa dilihat dari remote' : 'Kamera belum diizinkan';
+    $('camPermBtn').classList.toggle('hidden', ok || !has);
+  }
+  window.onCamPerm = function () { syncCam(); };
+
   function syncPanel() {
+    syncCam();
     // theme
     var btns = $('themeSeg').getElementsByTagName('button');
     for (var i = 0; i < btns.length; i++) {
