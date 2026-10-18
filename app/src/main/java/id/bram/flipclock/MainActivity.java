@@ -278,6 +278,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean isSpeaking() { return media.speaking; }
 
+        /** Info radio untuk tampilan di jam (JSON). */
+        @JavascriptInterface
+        public String radioInfo() { return RadioPlayer.get(MainActivity.this).infoJson(); }
+
+        /** Tinggi batang animasi radio (32 angka 0–100, dipisah koma) atau "" kalau tidak ada suara. */
+        @JavascriptInterface
+        public String radioViz(int delayMs) { return RadioViz.get().levels(Math.max(0, Math.min(1500, delayMs))); }
+
         // ---------------- jam mengambang
         @JavascriptInterface
         public boolean isOverlay() { return false; }

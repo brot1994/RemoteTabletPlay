@@ -34,7 +34,8 @@
     ['date', 'Tampilkan tanggal', 'Hari dan tanggal di bawah jam'],
     ['sound', 'Suara flip', 'Bunyi klik saat angka berganti'],
     ['awake', 'Layar tetap menyala', 'Layar tidak mati sendiri selama aplikasi terbuka'],
-    ['night', 'Redup otomatis malam', 'Pukul 22.00–05.00 layar jadi lebih gelap']
+    ['night', 'Redup otomatis malam', 'Pukul 22.00–05.00 layar jadi lebih gelap'],
+    ['radioViz', 'Tampilan radio', 'Nama stasiun, judul lagu & animasi saat radio diputar']
   ];
 
   // ---------------------------------------------------------------- state
@@ -48,7 +49,7 @@
   }
 
   var DEFAULTS = {
-    f24: true, sec: true, date: true, sound: false, awake: true, night: true,
+    f24: true, sec: true, date: true, sound: false, awake: true, night: true, radioViz: true,
     brightManual: false, bright: 80,
     textColor: '#ECEAE4', cardColor: '#1C1C1F', bgColor: '#0E0E0F', accent: '#F2A33A',
     custom: false, customText: '',
@@ -175,6 +176,16 @@
     var isStrip = vw >= vh * 2.4;          // strip lebar (jam mengambang atas/bawah)
     clockEl.className = isStrip ? 'strip' : (vw >= vh * 0.9) ? 'land' : 'port';
     var isLand = clockEl.className === 'land';
+    // pita radio di bawah jam (tidak di strip tipis)
+    var rOn = radioShown() && !isStrip && vh >= 220 && vw >= 200;
+    var rEl = $('radio'), bandH = 0;
+    rEl.classList.toggle('hidden', !rOn);
+    if (rOn) {
+      bandH = Math.round(vh * (isLand ? 0.3 : 0.34));
+      layoutRadio(vw, bandH, isLand && vw >= 520);
+    }
+    stage.style.paddingBottom = bandH + 'px';
+    vh = vh - bandH;
     var base = Math.min(vw, vh);
 
     var info = $('info'), dateEl = $('dateLine'), custEl = $('customLine');
@@ -253,6 +264,135 @@
     root.style.setProperty('--sH', sH + 'px');
     root.style.setProperty('--sfs', (sH * 0.72) + 'px');
   }
+
+  // ---------------------------------------------------------------- radio (nama stasiun, lagu, animasi)
+  var radio = { active: false, state: 'none', name: '', title: '' };
+  function radioShown() { return !!S.radioViz && radio.active; }
+  function layoutRadio(vw, bandH, row) {
+    var rEl = $('radio'), t = $('rtext');
+    rEl.classList.toggle('col', !row);
+    rEl.style.height = bandH + 'px';
+    var padX = Math.max(14, vw * 0.04);
+    rEl.style.padding = (bandH * 0.1) + 'px ' + padX + 'px ' + (bandH * 0.08) + 'px';
+    rEl.style.gap = (row ? padX : bandH * 0.04) + 'px';
+    var fs = row ? Math.min(bandH * 0.2, vw * 0.034) : Math.min(bandH * 0.13, vw * 0.07);
+    t.style.width = row ? Math.round(vw * 0.36) + 'px' : 'auto';
+    t.style.flex = row ? '0 0 auto' : '0 0 auto';
+    $('rtitle').style.fontSize = fs + 'px';
+    $('rlive').style.fontSize = (fs * 0.5) + 'px';
+    $('rartist').style.fontSize = (fs * 0.56) + 'px';
+    sizeViz();
+  }
+  function splitSong(s) {
+    s = String(s || '').trim();
+    var m = s.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+    return m ? { artist: m[1], title: m[2] } : { artist: '', title: s };
+  }
+  function renderRadioText() {
+    var waiting = radio.state === 'buffering';
+    $('radio').classList.toggle('wait', waiting);
+    $('rstate').textContent = waiting ? 'Menyambung' : 'On air';
+    $('rname').textContent = radio.name || 'Radio';
+    var song = splitSong(radio.title);
+    $('radio').classList.toggle('noname', !song.title);
+    $('rtitle').textContent = song.title || radio.name || 'Radio';
+    $('rartist').textContent = song.title ? (song.artist || 'Siaran langsung') : 'Siaran langsung';
+  }
+  function pollRadio() {
+    if (!AND || !AND.radioInfo) return;
+    var j; try { j = JSON.parse(AND.radioInfo()); } catch (e) { return; }
+    var was = radioShown();
+    var key = radio.state + '|' + radio.name + '|' + radio.title;
+    radio = { active: !!j.active, state: j.state || 'none', name: j.name || '', title: j.title || '' };
+    if (radioShown() !== was) { layout(); if (radioShown()) startViz(); }
+    if (radioShown() && key !== radio.state + '|' + radio.name + '|' + radio.title) { renderRadioText(); layout(); }
+  }
+  // animasi batang mengikuti suara radio
+  var vizRun = false, vCur = [], vPeak = [], vRunMax = 60, vLast = 0, vIdle = 0;
+  var VIZ_DELAY = 320;   // ms — kira-kira jeda dari pemutar sampai suara keluar speaker
+  function sizeViz() {
+    var c = $('rviz'), dpr = window.devicePixelRatio || 1;
+    var w = c.clientWidth, h = c.clientHeight;
+    if (!w || !h) { setTimeout(sizeViz, 60); return; }
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  }
+  function startViz() {
+    if (vizRun) return;
+    vizRun = true;
+    requestAnimationFrame(drawViz);
+  }
+  function drawViz(ts) {
+    if (!radioShown()) { vizRun = false; return; }
+    requestAnimationFrame(drawViz);
+    if (ts - vLast < 30) return;     // ±33 fps cukup halus dan hemat baterai
+    vLast = ts;
+    var c = $('rviz'), g = c.getContext('2d');
+    var W = c.width, H = c.height;
+    if (!W || !H) return;
+    var raw = AND && AND.radioViz ? AND.radioViz(VIZ_DELAY) : '';
+    var lv = raw ? raw.split(',').map(Number) : null;
+    var n = 32;
+    // jumlah batang menyesuaikan lebar
+    var bars = Math.max(16, Math.min(48, Math.round(W / (window.devicePixelRatio || 1) / 16)));
+    var tgt = [];
+    var fmax = 0;
+    for (var i = 0; i < bars; i++) {
+      var v;
+      if (lv && lv.length === n) {
+        var x = i * (n - 1) / (bars - 1), a = Math.floor(x), f = x - a;
+        v = lv[a] * (1 - f) + (lv[Math.min(n - 1, a + 1)] || 0) * f;
+      } else {
+        vIdle += 0.0009;
+        v = 6 + 5 * Math.sin(vIdle * 40 + i * 0.45);   // menunggu suara: gelombang pelan
+      }
+      tgt.push(v);
+      if (v > fmax) fmax = v;
+    }
+    if (lv) vRunMax = Math.max(fmax, vRunMax * 0.996);
+    var scale = lv ? 1 / Math.max(vRunMax, 40) : 1 / 100;
+    var gap = W / bars * 0.28, bw = W / bars - gap;
+    var baseY = H * 0.97, maxH = H * 0.92;
+    g.clearRect(0, 0, W, H);
+    var css = getComputedStyle(document.documentElement);
+    var acc = css.getPropertyValue('--accent').trim() || '#F2A33A';
+    var txt = css.getPropertyValue('--text').trim() || '#ECEAE4';
+    var grad = g.createLinearGradient(0, baseY - maxH, 0, baseY);
+    grad.addColorStop(0, acc); grad.addColorStop(1, hexA(acc, 0.55));
+    for (var k = 0; k < bars; k++) {
+      var t = Math.min(1, tgt[k] * scale);
+      t = Math.pow(t, 1.35);
+      var cur = vCur[k] || 0;
+      cur = t > cur ? cur + (t - cur) * 0.6 : cur * 0.88 + t * 0.12;
+      vCur[k] = cur;
+      var pk = vPeak[k] || 0;
+      pk = cur > pk ? cur : Math.max(0, pk - 0.012);
+      vPeak[k] = pk;
+      var x0 = k * (bw + gap) + gap / 2;
+      var bh = Math.max(bw * 0.35, cur * maxH);
+      var r = Math.min(bw / 2, 6 * (window.devicePixelRatio || 1));
+      g.fillStyle = grad;
+      roundRect(g, x0, baseY - bh, bw, bh, r);
+      if (lv && pk > 0.04) {
+        g.fillStyle = hexA(txt, 0.75);
+        g.fillRect(x0, baseY - pk * maxH - Math.max(2, bw * 0.16) - 3, bw, Math.max(2, bw * 0.16));
+      }
+    }
+  }
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h); g.lineTo(x, y + h); g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y);
+    g.closePath(); g.fill();
+  }
+  function hexA(hex, a) {
+    var m = String(hex).replace('#', '');
+    if (m.length === 3) m = m[0] + m[0] + m[1] + m[1] + m[2] + m[2];
+    var n = parseInt(m, 16);
+    if (isNaN(n)) return 'rgba(242,163,58,' + a + ')';
+    return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  setInterval(pollRadio, 1000);
+  setTimeout(pollRadio, 300);
 
   function tick(animate) {
     var d = new Date();
@@ -699,6 +839,7 @@
         if (t[0] === 'awake') applyAwake();
         if (t[0] === 'night') { lastNight = null; }
         if (t[0] === 'sound' && cb.checked) click();
+        if (t[0] === 'radioViz' && cb.checked) { renderRadioText(); startViz(); }
         changed(false);
       });
       tb.appendChild(lab);

@@ -12,9 +12,17 @@ import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Metadata;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
+import androidx.media3.common.audio.AudioProcessor;
 import androidx.media3.common.Player;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.Renderer;
+import androidx.media3.exoplayer.RenderersFactory;
+import androidx.media3.exoplayer.audio.DefaultAudioSink;
+import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer;
+import androidx.media3.exoplayer.audio.TeeAudioProcessor;
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
+import androidx.media3.exoplayer.metadata.MetadataRenderer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.extractor.metadata.icy.IcyHeaders;
 import androidx.media3.extractor.metadata.icy.IcyInfo;
@@ -52,7 +60,15 @@ class RadioPlayer {
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(12000)
                 .setReadTimeoutMs(20000);
-        player = new ExoPlayer.Builder(ctx)
+        // hanya renderer audio + metadata (judul lagu); audio juga dikirim ke penganalisis animasi
+        RenderersFactory rf = (handler, videoListener, audioListener, textOutput, metadataOutput) -> new Renderer[]{
+                new MediaCodecAudioRenderer(ctx, MediaCodecSelector.DEFAULT, handler, audioListener,
+                        new DefaultAudioSink.Builder(ctx)
+                                .setAudioProcessors(new AudioProcessor[]{new TeeAudioProcessor(RadioViz.get())})
+                                .build()),
+                new MetadataRenderer(metadataOutput, handler.getLooper())
+        };
+        player = new ExoPlayer.Builder(ctx, rf)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(ctx).setDataSourceFactory(http))
                 .setAudioAttributes(new AudioAttributes.Builder()
                         .setUsage(C.USAGE_MEDIA)
@@ -132,6 +148,8 @@ class RadioPlayer {
         error = "";
         retries = 0;
         wantPlay = true;
+        RadioViz.get().clear();
+        startInfo();
         ExoPlayer p = player();
         MediaItem.Builder b = new MediaItem.Builder().setUri(Uri.parse(link));
         String low = link.toLowerCase();
@@ -192,6 +210,35 @@ class RadioPlayer {
         if (player.isPlaying()) return "playing";
         if (wantPlay) return "buffering";
         return "paused";
+    }
+
+    /** Untuk tampilan di jam. Dipanggil dari thread JavaScript → nilai disalin dari thread utama. */
+    private volatile String info = "{\"active\":false}";
+
+    String infoJson() { return info; }
+
+    private final Runnable infoTick = new Runnable() {
+        @Override public void run() {
+            try {
+                org.json.JSONObject o = new org.json.JSONObject();
+                String st = state();
+                o.put("active", "playing".equals(st) || "buffering".equals(st));
+                o.put("state", st);
+                o.put("name", name);
+                o.put("title", songTitle);
+                o.put("error", error);
+                info = o.toString();
+            } catch (Exception ignored) { }
+            ui.postDelayed(this, 700);
+        }
+    };
+
+    private boolean ticking = false;
+
+    private void startInfo() {
+        if (ticking) return;
+        ticking = true;
+        ui.post(infoTick);
     }
 
     String name() { return name; }

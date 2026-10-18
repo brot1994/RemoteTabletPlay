@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 public class RemoteService extends Service {
 
     static final String CHANNEL = "tabletplay_remote";
-    static final String VER = "2.7";
+    static final String VER = "2.8";
 
     static final String P_ENABLED = "r_enabled";
     static final String P_DB = "r_db";

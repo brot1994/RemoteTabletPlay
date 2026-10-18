@@ -203,6 +203,14 @@ class ClockOverlay {
         @JavascriptInterface public String ttsStatus() { return MediaHelper.get(ctx).ttsStatus(); }
         @JavascriptInterface public boolean isSpeaking() { return MediaHelper.get(ctx).speaking; }
 
+        /** Info radio untuk tampilan di jam (JSON). */
+        @JavascriptInterface
+        public String radioInfo() { return RadioPlayer.get(ctx).infoJson(); }
+
+        /** Tinggi batang animasi radio (32 angka 0–100, dipisah koma) atau "" kalau tidak ada suara. */
+        @JavascriptInterface
+        public String radioViz(int delayMs) { return RadioViz.get().levels(Math.max(0, Math.min(1500, delayMs))); }
+
         @JavascriptInterface
         public void setBrightness(final float level) {
             ui.post(() -> {
