@@ -1,0 +1,147 @@
+[
+ {
+  "url": "https://ic.mari.co.id:8443/genfm",
+  "verify": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)>",
+  "noverify": "ok",
+  "ct": "audio/aacp",
+  "bytes": 20000,
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR2"
+  ]
+ },
+ {
+  "url": "https://ic.mari.co.id:8443/jakfm",
+  "verify": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)>",
+  "noverify": "ok",
+  "ct": "audio/aacp",
+  "bytes": 20000,
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR2"
+  ]
+ },
+ {
+  "url": "http://ic.mari.co.id:8000/genfm",
+  "verify": "ok",
+  "ct": "audio/aacp",
+  "bytes": 20000
+ },
+ {
+  "url": "http://ic.mari.co.id:8000/jakfm",
+  "verify": "ok",
+  "ct": "audio/aacp",
+  "bytes": 20000
+ },
+ {
+  "url": "https://wz.mari.co.id:1936/noice_jakfm/jakfm/playlist.m3u8",
+  "verify": "ok",
+  "ct": "application/vnd.apple.mpegurl",
+  "bytes": 105,
+  "m3u8": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=41727,CODECS=\"mp4a.40.2\"\nchunklist_w1905806072.m3u8\n",
+  "segment": {
+   "url": "https://wz.mari.co.id:1936/noice_jakfm/jakfm/media_w1905806072_111473.ts",
+   "ct": "video/MP2T",
+   "bytes": 52264
+  },
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR1",
+   "i:C = US, O = ISRG, CN = Root YR",
+   "i:C = US, O = Internet Security Research Group, CN = ISRG Root X1"
+  ]
+ },
+ {
+  "url": "https://wz.mari.co.id:1936/noice_genfm/genfm/playlist.m3u8",
+  "verify": "ok",
+  "ct": "application/vnd.apple.mpegurl",
+  "bytes": 105,
+  "m3u8": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=42179,CODECS=\"mp4a.40.2\"\nchunklist_w1307400703.m3u8\n",
+  "segment": {
+   "url": "https://wz.mari.co.id:1936/noice_genfm/genfm/media_w1307400703_111434.ts",
+   "ct": "video/MP2T",
+   "bytes": 51700
+  },
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR1",
+   "i:C = US, O = ISRG, CN = Root YR",
+   "i:C = US, O = Internet Security Research Group, CN = ISRG Root X1"
+  ]
+ },
+ {
+  "url": "http://103.246.184.62:1935/noice_genfm/genfm/playlist.m3u8",
+  "verify": "ok",
+  "ct": "application/vnd.apple.mpegurl",
+  "bytes": 105,
+  "m3u8": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=42179,CODECS=\"mp4a.40.2\"\nchunklist_w1135440003.m3u8\n",
+  "segment": {
+   "url": "http://103.246.184.62:1935/noice_genfm/genfm/media_w1135440003_111434.ts",
+   "ct": "video/MP2T",
+   "bytes": 51700
+  }
+ },
+ {
+  "url": "http://103.246.184.62:1935/noice_jakfm/jakfm/playlist.m3u8",
+  "verify": "ok",
+  "ct": "application/vnd.apple.mpegurl",
+  "bytes": 104,
+  "m3u8": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=41727,CODECS=\"mp4a.40.2\"\nchunklist_w110255156.m3u8\n",
+  "segment": {
+   "url": "http://103.246.184.62:1935/noice_jakfm/jakfm/media_w110255156_111475.ts",
+   "ct": "video/MP2T",
+   "bytes": 51324
+  }
+ },
+ {
+  "url": "https://stream.rcs.revma.com/h77wwp48kxcwv",
+  "verify": "ok",
+  "ct": "audio/aac",
+  "bytes": 20000,
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR2",
+   "i:C = US, O = ISRG, CN = Root YR",
+   "i:C = US, O = Internet Security Research Group, CN = ISRG Root X1"
+  ]
+ },
+ {
+  "url": "https://stream.rcs.revma.com/k02rmq48kxcwv",
+  "verify": "ok",
+  "ct": "audio/aac",
+  "bytes": 20000,
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR2",
+   "i:C = US, O = ISRG, CN = Root YR",
+   "i:C = US, O = Internet Security Research Group, CN = ISRG Root X1"
+  ]
+ },
+ {
+  "url": "https://sonora-radio.arenastreaming.com/8130/stream",
+  "verify": "ok",
+  "ct": "audio/mpeg",
+  "bytes": 20000,
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR2",
+   "i:C = US, O = ISRG, CN = Root YR",
+   "i:C = US, O = Internet Security Research Group, CN = ISRG Root X1"
+  ]
+ },
+ {
+  "url": "https://stream-ssl.arenastreaming.com:8000/jakarta",
+  "verify": "ok",
+  "ct": "audio/mpeg",
+  "bytes": 20000,
+  "chain": [
+   "i:C = US, O = Let's Encrypt, CN = YR2",
+   "i:C = US, O = ISRG, CN = Root YR",
+   "i:C = US, O = Internet Security Research Group, CN = ISRG Root X1"
+  ]
+ },
+ {
+  "url": "https://c5.siar.us/proxy/ssfm/stream",
+  "verify": "ok",
+  "ct": "audio/aacp",
+  "bytes": 20000,
+  "chain": [
+   "i:C = AT, O = ZeroSSL GmbH, CN = ZeroSSL ECC DV SSL CA 2",
+   "i:C = GB, O = Sectigo Limited, CN = Sectigo Public Server Authentication Root E46",
+   "i:C = US, ST = New Jersey, L = Jersey City, O = The USERTRUST Network, CN = USERTrust ECC Certification Authority"
+  ]
+ }
+]

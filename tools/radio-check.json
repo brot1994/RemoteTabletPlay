@@ -35,7 +35,7 @@
    "bytes": 16384,
    "final": "https://stream.radioalikhwan.com/listen/delta_fm_makassar/hd",
    "icy": "Delta FM Makassar",
-   "ms": 946,
+   "ms": 1060,
    "head": ""
   }
  },
@@ -56,9 +56,9 @@
    "status": 200,
    "ct": "audio/aac",
    "bytes": 16384,
-   "final": "https://n01-us2.rcs.revma.com/k02rmq48kxcwv?rj-ttl=5&rj-tok=AAABoUyr1fcArnPpiluKbaubUQ",
+   "final": "https://n05-us2.rcs.revma.com/k02rmq48kxcwv?rj-ttl=5&rj-tok=AAABoUytPcMAk3eSrAguivKRbQ",
    "icy": "Delta FM",
-   "ms": 964,
+   "ms": 743,
    "head": ""
   }
  },
@@ -81,7 +81,7 @@
    "bytes": 16384,
    "final": "https://stream-pd-bdg.dimasalfaridzi.my.id/delta",
    "icy": "Delta Bandung",
-   "ms": 267,
+   "ms": 377,
    "head": ""
   }
  },
@@ -155,7 +155,7 @@
    "bytes": 16384,
    "final": "https://stream-ssl.arenastreaming.com:8000/jakarta",
    "icy": "PT. Radio Elshinta",
-   "ms": 2528,
+   "ms": 2705,
    "head": ""
   }
  },
@@ -178,7 +178,7 @@
    "bytes": 16384,
    "final": "https://stream-ssl.arenastreaming.com:8000/jakarta",
    "icy": "PT. Radio Elshinta",
-   "ms": 2527,
+   "ms": 2542,
    "head": ""
   }
  },
@@ -215,10 +215,10 @@
    "ok": false,
    "status": 200,
    "ct": "application/vnd.apple.mpegurl",
-   "bytes": 206,
+   "bytes": 205,
    "final": "http://103.246.184.62:1935/noice_genfm/genfm/chunklist_w279187457.m3u8",
    "icy": "",
-   "ms": 563,
+   "ms": 633,
    "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:11\n#EXT-X-MED"
   }
  },
@@ -238,10 +238,10 @@
    "ok": false,
    "status": 200,
    "ct": "application/vnd.apple.mpegurl",
-   "bytes": 209,
+   "bytes": 208,
    "final": "http://103.246.184.62:1935/noice_genfm/genfm/chunklist.m3u8",
    "icy": "",
-   "ms": 574,
+   "ms": 597,
    "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:11\n#EXT-X-MED"
   }
  },
@@ -261,10 +261,10 @@
    "ok": false,
    "status": 200,
    "ct": "application/vnd.apple.mpegurl",
-   "bytes": 206,
+   "bytes": 208,
    "final": "http://103.246.184.62:1935/noice_genfm/genfm/chunklist.m3u8",
    "icy": "",
-   "ms": 558,
+   "ms": 639,
    "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:11\n#EXT-X-MED"
   }
  },
@@ -284,10 +284,10 @@
    "ok": false,
    "status": 200,
    "ct": "application/vnd.apple.mpegurl",
-   "bytes": 209,
+   "bytes": 205,
    "final": "http://103.246.184.62:1935/noice_genfm/genfm/chunklist.m3u8",
    "icy": "",
-   "ms": 563,
+   "ms": 643,
    "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:11\n#EXT-X-MED"
   }
  },
@@ -307,10 +307,10 @@
    "ok": false,
    "status": 200,
    "ct": "application/vnd.apple.mpegurl",
-   "bytes": 206,
+   "bytes": 205,
    "final": "http://103.246.184.62:1935/noice_genfm/genfm/chunklist_w279187457.m3u8",
    "icy": "",
-   "ms": 558,
+   "ms": 595,
    "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:11\n#EXT-X-MED"
   }
  },
@@ -347,10 +347,10 @@
    "ok": false,
    "status": 200,
    "ct": "application/vnd.apple.mpegurl",
-   "bytes": 208,
+   "bytes": 205,
    "final": "http://103.246.184.62:1935/noice_genfm/genfm/chunklist.m3u8",
    "icy": "",
-   "ms": 558,
+   "ms": 602,
    "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:11\n#EXT-X-MED"
   }
  },
@@ -404,11 +404,11 @@
    "ok": false,
    "status": 200,
    "ct": "application/vnd.apple.mpegurl",
-   "bytes": 104,
+   "bytes": 105,
    "final": "https://wz.mari.co.id:1936/noice_jakfm/jakfm/playlist.m3u8",
    "icy": "",
-   "ms": 1594,
-   "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=41581,C"
+   "ms": 1850,
+   "head": "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=41878,C"
   }
  },
  {
@@ -430,7 +430,7 @@
    "bytes": 16384,
    "final": "https://stream-pd-bdg.dimasalfaridzi.my.id/prambors",
    "icy": "Prambors Bandung",
-   "ms": 875,
+   "ms": 860,
    "head": ""
   }
  },
@@ -451,9 +451,9 @@
    "status": 200,
    "ct": "audio/aac",
    "bytes": 16384,
-   "final": "https://n04-us2.rcs.revma.com/h77wwp48kxcwv?rj-ttl=5&rj-tok=AAABoUyra9IAzJMk5vgAJ3OAdw",
+   "final": "https://n05-us2.rcs.revma.com/h77wwp48kxcwv?rj-ttl=5&rj-tok=AAABoUys0jgAHkgxQX1fDk2ZBg",
    "icy": "PRAMBORS",
-   "ms": 1186,
+   "ms": 967,
    "head": ""
   }
  },
@@ -544,7 +544,7 @@
    "bytes": 16384,
    "final": "https://stream-ssl.arenastreaming.com:8000/jakarta",
    "icy": "PT. Radio Elshinta",
-   "ms": 2473,
+   "ms": 2567,
    "head": ""
   }
  },
@@ -567,7 +567,7 @@
    "bytes": 16384,
    "final": "https://stream-ssl.arenastreaming.com:8000/jakarta",
    "icy": "PT. Radio Elshinta",
-   "ms": 2488,
+   "ms": 2560,
    "head": ""
   }
  },
@@ -590,7 +590,7 @@
    "bytes": 16384,
    "final": "https://stream-ssl.arenastreaming.com:8000/jakarta",
    "icy": "PT. Radio Elshinta",
-   "ms": 2557,
+   "ms": 2509,
    "head": ""
   }
  },
@@ -613,7 +613,7 @@
    "bytes": 16384,
    "final": "https://stream-ssl.arenastreaming.com:8005/bandung",
    "icy": "Elshinta Bandung",
-   "ms": 2497,
+   "ms": 2512,
    "head": ""
   }
  },
@@ -636,7 +636,7 @@
    "bytes": 16384,
    "final": "https://stream-ssl.arenastreaming.com:8030/surabaya",
    "icy": "Radio Surabaya",
-   "ms": 2474,
+   "ms": 2564,
    "head": ""
   }
  },
@@ -676,7 +676,7 @@
    "bytes": 16384,
    "final": "https://sonora-radio.arenastreaming.com/8130/stream",
    "icy": "RadioCaster Stream",
-   "ms": 1709,
+   "ms": 1722,
    "head": ""
   }
  },
@@ -716,7 +716,7 @@
    "bytes": 16384,
    "final": "https://sonora-radio.arenastreaming.com/8130/stream",
    "icy": "RadioCaster Stream",
-   "ms": 1688,
+   "ms": 1696,
    "head": ""
   }
  },
@@ -773,7 +773,7 @@
    "bytes": 16384,
    "final": "https://mediacp-sg2.arenastreaming.com:8004/stream",
    "icy": "",
-   "ms": 1971,
+   "ms": 2040,
    "head": ""
   }
  },
@@ -796,7 +796,7 @@
    "bytes": 16384,
    "final": "https://c5.siar.us/proxy/ssfm/stream",
    "icy": "SSFM Audio Streaming",
-   "ms": 954,
+   "ms": 1156,
    "head": ""
   }
  },
@@ -819,7 +819,7 @@
    "bytes": 16384,
    "final": "https://c5.siar.us/proxy/ssfm/stream",
    "icy": "SSFM Audio Streaming",
-   "ms": 920,
+   "ms": 981,
    "head": ""
   }
  }
