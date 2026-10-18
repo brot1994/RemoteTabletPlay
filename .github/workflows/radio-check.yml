@@ -1,0 +1,28 @@
+name: Cek link radio
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'tools/radio_check.py', 'tools/radio_extra.txt' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/radio_check.py
+      - name: Simpan hasil
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/radio-check.json
+          git commit -m "Hasil cek radio [skip ci]" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
