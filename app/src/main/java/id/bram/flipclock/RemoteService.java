@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 public class RemoteService extends Service {
 
     static final String CHANNEL = "tabletplay_remote";
-    static final String VER = "2.6";
+    static final String VER = "2.7";
 
     static final String P_ENABLED = "r_enabled";
     static final String P_DB = "r_db";
@@ -52,6 +52,7 @@ public class RemoteService extends Service {
     private volatile int generation = 0;
     private Handler ui;
     private MediaHelper media;
+    private RadioPlayer radio;
     private String lastNowKey = "";
     private String lastArt = "";
 
@@ -82,6 +83,7 @@ public class RemoteService extends Service {
         super.onCreate();
         ui = new Handler(Looper.getMainLooper());
         media = MediaHelper.get(this);
+        radio = RadioPlayer.get(this);
         startForeground(71, buildNotification());
         running = true;
         ClockOverlay.get(this).apply();
@@ -131,7 +133,7 @@ public class RemoteService extends Service {
         PendingIntent pi = PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0));
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
-        b.setContentTitle("Tablet Play Overlay aktif")
+        b.setContentTitle("Tablet Play aktif")
                 .setContentText("Siap menerima musik & pengumuman dari remote")
                 .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
                 .setOngoing(true)
@@ -313,6 +315,10 @@ public class RemoteService extends Service {
                     return new String[]{"ok", "Kode akses pesan dibuat ulang"};
                 }
                 case "media": {
+                    if ("radio".equals(p.getString(P_SRC, ""))) {
+                        String r = radio.command(c.optString("cmd"));
+                        return new String[]{r.startsWith("ok") ? "ok" : "fail", r};
+                    }
                     String r = media.command(p.getString(P_SRC, "youtube"), c.optString("cmd"));
                     return new String[]{r.startsWith("ok") ? "ok" : "fail", r};
                 }
@@ -323,6 +329,15 @@ public class RemoteService extends Service {
                 }
                 case "play": {
                     String src = srcOf(c.optString("src"));
+                    if ("radio".equals(src)) {
+                        String link = c.optString("link", "").trim();
+                        if (!link.matches("(?i)^https?://.+")) return new String[]{"fail", "Link radio harus diawali http:// atau https://"};
+                        String nm = c.optString("name", "Radio");
+                        p.edit().putString(P_SRC, "radio").putString(P_PLNAME, nm).apply();
+                        radio.play(nm, link);
+                        return new String[]{"ok", "Memutar " + nm};
+                    }
+                    radio.stop();
                     String[] n = normalize(src, c.optString("link"));
                     if (n[0].isEmpty()) return new String[]{"fail", "Link kosong"};
                     p.edit().putString(P_SRC, src).putString(P_PLNAME, c.optString("name", "")).apply();
@@ -335,6 +350,13 @@ public class RemoteService extends Service {
                 }
                 case "open": {
                     String src = srcOf(c.optString("src"));
+                    if ("radio".equals(src)) {
+                        p.edit().putString(P_SRC, "radio").apply();
+                        if (radio.url().isEmpty()) return new String[]{"ok", "Pilih stasiun dari daftar"};
+                        radio.resume();
+                        return new String[]{"ok", "Melanjutkan " + radio.name()};
+                    }
+                    radio.stop();
                     p.edit().putString(P_SRC, src).putString(P_PLNAME, "").apply();
                     String home = "spotify".equals(src) ? "https://open.spotify.com/"
                             : "ytmusic".equals(src) ? "https://music.youtube.com/" : "https://m.youtube.com/";
@@ -371,7 +393,7 @@ public class RemoteService extends Service {
     }
 
     private static String srcOf(String s) {
-        return "ytmusic".equals(s) || "spotify".equals(s) ? s : "youtube";
+        return "ytmusic".equals(s) || "spotify".equals(s) || "radio".equals(s) ? s : "youtube";
     }
 
     /** Setelah membuka aplikasi musik, pastikan jam tetap tampil di sisi sebelah. */
@@ -455,6 +477,19 @@ public class RemoteService extends Service {
         SharedPreferences p = prefs();
         String want = p.getString(P_SRC, "youtube");
         JSONObject info = new JSONObject(media.info(want));
+        if ("radio".equals(want)) {
+            JSONObject r = new JSONObject();
+            r.put("vol", info.optInt("vol", -1));
+            r.put("access", info.optBoolean("access", false));
+            r.put("src", "radio");
+            r.put("state", radio.state());
+            String song = radio.songTitle();
+            r.put("title", song.isEmpty() ? radio.name() : song);
+            r.put("artist", song.isEmpty() ? "Radio" : radio.name());
+            r.put("acts", "radio");
+            r.put("spres", radio.error());
+            info = r;
+        }
         JSONObject now = new JSONObject();
         now.put("src", info.optString("src", want).isEmpty() ? want : info.optString("src", want));
         now.put("want", want);

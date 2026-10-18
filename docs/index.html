@@ -48,6 +48,8 @@ h2 { margin: 0 0 10px 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.
 #laySeg { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 #laySeg button[data-mode="off"] { grid-column: 1 / -1; }
 .seg button.on { background: var(--ink); color: #fff; font-weight: 600; }
+#srcSeg { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#srcSeg button { gap: 5px; padding: 0 3px; font-size: 13px; }
 .sdot { width: 9px; height: 9px; border-radius: 5px; flex-shrink: 0; }
 .np { display: flex; gap: 14px; align-items: center; min-height: 76px; }
 .art { width: 76px; height: 76px; border-radius: 10px; flex-shrink: 0; background: #E4E3DE center/cover no-repeat; }
@@ -175,7 +177,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     </div>
 
     <section id="musicSec">
-      <h2>Musik &amp; video</h2>
+      <h2>Musik, video &amp; radio</h2>
       <div class="box pad">
         <div class="seg" id="srcSeg" role="group" aria-label="Sumber musik"></div>
         <div class="np">
@@ -203,9 +205,9 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
           <button class="btn2" id="openAppBtn">Buka aplikasi di tablet</button>
           <button class="btn2" id="clockBtn">Munculkan jam di tablet</button>
           <details id="addPl">
-            <summary>+ Tambah playlist / video</summary>
+            <summary id="addPlSum">+ Tambah playlist / video</summary>
             <div class="addpl">
-              <label class="lbl" for="plName">Nama (untuk Spotify: tulis sama persis dengan nama playlist di Spotify)</label>
+              <label class="lbl" for="plName" id="plNameLbl">Nama (untuk Spotify: tulis sama persis dengan nama playlist di Spotify)</label>
               <input class="txt" id="plName" type="text" maxlength="40" placeholder="Contoh: Indo jadul">
               <label class="lbl" for="plLink" id="plLinkLbl">Link</label>
               <input class="txt" id="plLink" type="url" autocomplete="off">
@@ -328,8 +330,17 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   var SOURCES = [
     { id: 'youtube', label: 'YouTube', color: '#FF0033', hint: 'https://youtube.com/playlist?list=…  atau link video' },
     { id: 'ytmusic', label: 'YT Music', color: '#FF4E45', hint: 'https://music.youtube.com/playlist?list=…' },
-    { id: 'spotify', label: 'Spotify', color: '#1ED760', hint: 'https://open.spotify.com/playlist/…' }
+    { id: 'spotify', label: 'Spotify', color: '#1ED760', hint: 'https://open.spotify.com/playlist/…' },
+    { id: 'radio', label: 'Radio', color: '#F2A33A', hint: 'https://… (link siaran langsung, bukan halaman web)' }
   ];
+  // stasiun bawaan — dimasukkan sekali ke daftar tablet, setelah itu bisa dihapus/ditambah sendiri
+  var RADIO_DEFAULTS = [{"name": "Prambors FM", "link": "https://stream.rcs.revma.com/h77wwp48kxcwv"},
+    {"name": "Sonora FM Jakarta", "link": "https://sonora-radio.arenastreaming.com/8130/stream"},
+    {"name": "Jak FM 101", "link": "http://ic.mari.co.id:8000/jakfm"},
+    {"name": "Gen FM 98.7", "link": "http://ic.mari.co.id:8000/genfm"},
+    {"name": "Delta FM", "link": "https://stream.rcs.revma.com/k02rmq48kxcwv"},
+    {"name": "Suara Surabaya", "link": "https://c5.siar.us/proxy/ssfm/stream"},
+    {"name": "Elshinta", "link": "https://stream-ssl.arenastreaming.com:8000/jakarta"}];
   var PALETTES = {
     textColor: [['Putih gading','#ECEAE4'],['Putih','#FFFFFF'],['Amber','#F2A33A'],['Biru muda','#5AC8FA'],['Hijau','#7ED9A0'],['Merah','#FF6B5E']],
     cardColor: [['Arang','#1C1C1F'],['Hitam','#0A0A0A'],['Biru tua','#1F2A3A'],['Coklat tua','#3A2A20'],['Hijau tua','#1E3328'],['Putih','#F4F2EC']],
@@ -562,10 +573,14 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       bs[i].setAttribute('aria-pressed', on ? 'true' : 'false');
     }
     var s = SOURCES.filter(function (x) { return x.id === curSrc; })[0];
-    $('plHead').textContent = 'Playlist ' + s.label;
-    $('plLinkLbl').textContent = 'Link dari ' + s.label;
+    var isR = curSrc === 'radio';
+    $('plHead').textContent = isR ? 'Stasiun radio (diputar langsung oleh aplikasi tablet)' : 'Playlist ' + s.label;
+    $('plLinkLbl').textContent = isR ? 'Link siaran (stream) radio' : 'Link dari ' + s.label;
     $('plLink').placeholder = s.hint;
-    $('openAppBtn').textContent = 'Buka ' + s.label + ' di tablet';
+    $('plNameLbl').textContent = isR ? 'Nama stasiun' : 'Nama (untuk Spotify: tulis sama persis dengan nama playlist di Spotify)';
+    $('plName').placeholder = isR ? 'Contoh: Prambors FM' : 'Contoh: Indo jadul';
+    $('addPlSum').textContent = isR ? '+ Tambah stasiun radio' : '+ Tambah playlist / video';
+    $('openAppBtn').textContent = isR ? 'Lanjutkan radio terakhir' : 'Buka ' + s.label + ' di tablet';
   }
 
   var LAY_LABEL = { left: 'kiri', right: 'kanan', top: 'atas', bottom: 'bawah' };
@@ -586,18 +601,24 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   function renderNow() {
     renderLayout();
-    var playing = now && now.state === 'playing';
+    var playing = now && (now.state === 'playing' || now.state === 'buffering');
     var srcName = '';
     if (now && now.src) { var s = SOURCES.filter(function (x) { return x.id === now.src; })[0]; srcName = s ? s.label : ''; }
-    var stateTxt = !now ? '—' : now.state === 'playing' ? 'SEDANG DIPUTAR' : now.state === 'paused' ? 'DIJEDA' : now.state === 'loading' ? 'MEMUAT…' : 'TIDAK ADA YANG DIPUTAR';
+    var stateTxt = !now ? '—' : now.state === 'playing' ? 'SEDANG DIPUTAR' : now.state === 'paused' ? 'DIJEDA' : now.state === 'loading' ? 'MEMUAT…' : now.state === 'buffering' ? 'MENYAMBUNG…' : now.state === 'error' ? 'GAGAL MEMUTAR' : 'TIDAK ADA YANG DIPUTAR';
     $('npState').textContent = stateTxt + (srcName ? ' · ' + srcName.toUpperCase() : '');
     $('npState').style.color = playing ? '#13803D' : '#55555B';
     $('npTitle').textContent = now && now.title ? now.title : (now && now.speaking ? 'Sedang membacakan pengumuman…' : 'Belum ada yang diputar');
-    $('npArtist').textContent = now ? [now.artist, now.queue ? 'Antrean: ' + now.queue : (now.playlist ? 'Playlist: ' + now.playlist : '')].filter(Boolean).join(' · ') : '';
-    $('npArt').style.backgroundImage = now && now.art ? 'url("' + now.art + '")' : 'none';
+    if (now && now.src === 'radio') {
+      $('npArtist').textContent = now.state === 'error' && now.spres ? now.spres : (now.title !== now.playlist ? now.playlist || '' : 'Siaran langsung');
+      $('npArtist').style.color = now.state === 'error' ? '#B42318' : '';
+    } else $('npArtist').style.color = '';
+    if (!(now && now.src === 'radio')) $('npArtist').textContent = now ? [now.artist, now.queue ? 'Antrean: ' + now.queue : (now.playlist ? 'Playlist: ' + now.playlist : '')].filter(Boolean).join(' · ') : '';
+    var logo = '';
+    if (now && now.src === 'radio') { for (var pk in playlists) if (playlists[pk] && playlists[pk].src === 'radio' && playlists[pk].name === now.playlist && playlists[pk].logo) logo = playlists[pk].logo; }
+    $('npArt').style.backgroundImage = now && now.art ? 'url("' + now.art + '")' : logo ? 'url("' + logo + '")' : 'none';
     $('ppIcon').innerHTML = playing ? '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>' : '<path d="M8 5v14l11-7z"/>';
     $('ppBtn').setAttribute('aria-label', playing ? 'Jeda' : 'Putar');
-    $('diag').textContent = now ? ('app ' + (now.ver || '1.0') + ' · ' + (now.src || '-') + ' dukung: ' + (now.acts || '-') + (now.spres ? ' · spotify: ' + now.spres : '')) : '-';
+    $('diag').textContent = now ? ('app ' + (now.ver || '1.0') + ' · ' + (now.src || '-') + ' dukung: ' + (now.acts || '-') + (now.spres ? (now.src === 'radio' ? ' · radio: ' : ' · spotify: ') + now.spres : '')) : '-';
     if (now && typeof now.vol === 'number' && now.vol >= 0 && document.activeElement !== $('vol') && !volDragging) {
       $('vol').value = now.vol;
       $('volVal').textContent = now.vol + '%';
@@ -608,8 +629,35 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   function loadPlaylists() {
     var d = cur(); if (!d) return;
     fetch(url(d, 'playlists')).then(function (r) { return r.json(); }).then(function (j) {
-      playlists = j || {}; renderPlaylists();
+      playlists = j || {}; seedRadio(d); renderPlaylists();
     }).catch(function () { });
+  }
+
+  function seedRadio(d) {
+    if (playlists._radioSeeded || isLimited(d)) return;
+    var t = Date.now(), batch = { _radioSeeded: { at: t } };
+    var have = {};
+    Object.keys(playlists).forEach(function (k) { if (playlists[k] && playlists[k].src === 'radio') have[playlists[k].name] = 1; });
+    RADIO_DEFAULTS.forEach(function (r, i) {
+      if (have[r.name]) return;
+      var p = { name: r.name, link: r.link, src: 'radio', at: t + i };
+      if (r.logo) p.logo = r.logo;
+      batch['r' + i + '_' + rid().substr(0, 6)] = p;
+    });
+    for (var k in batch) playlists[k] = batch[k];
+    fetch(d.db + '/clocks/' + d.k + '/playlists.json', { method: 'POST', headers: { 'X-HTTP-Method-Override': 'PATCH' }, body: JSON.stringify(batch) }).catch(function () { });
+  }
+  function radioList() {
+    return Object.keys(playlists).filter(function (k) { return playlists[k] && playlists[k].src === 'radio'; })
+      .sort(function (a, b) { return (playlists[a].at || 0) - (playlists[b].at || 0); }).map(function (k) { return playlists[k]; });
+  }
+  function radioStep(dir) {
+    var list = radioList(); if (!list.length) return false;
+    var i = -1;
+    list.forEach(function (p, j) { if (now && p.name === now.playlist) i = j; });
+    var p = list[(i + dir + list.length) % list.length];
+    sendCmd({ type: 'play', src: 'radio', link: p.link, name: p.name }, 'Memutar ' + p.name);
+    return true;
   }
 
   function renderPlaylists() {
@@ -620,7 +668,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     if (!ids.length) {
       var e = document.createElement('div');
       e.className = 'lbl';
-      e.textContent = 'Belum ada playlist tersimpan. Tambahkan lewat "+ Tambah playlist / video".';
+      e.textContent = curSrc === 'radio' ? 'Belum ada stasiun. Tambahkan lewat "+ Tambah stasiun radio".' : 'Belum ada playlist tersimpan. Tambahkan lewat "+ Tambah playlist / video".';
       box.appendChild(e);
       return;
     }
@@ -633,7 +681,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
         '<button class="iconbtn play" aria-label="Putar"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
         '<button class="iconbtn del" aria-label="Hapus playlist"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>';
       row.querySelector('.pname div').textContent = p.name;
-      row.querySelector('.pnote').textContent = active ? 'Sedang diputar' : p.link.replace(/^https?:\/\//, '').substr(0, 42);
+      row.querySelector('.pnote').textContent = active ? (p.src === 'radio' ? 'Sedang diputar di tablet' : 'Sedang diputar') : (p.src === 'radio' ? 'Radio · ' + p.link.replace(/^https?:\/\//, '').split('/')[0] : p.link.replace(/^https?:\/\//, '').substr(0, 42));
       row.querySelector('.play').addEventListener('click', function () { playPl(p); });
       row.querySelector('.del').addEventListener('click', function () {
         if (!confirm('Hapus "' + p.name + '" dari daftar?')) return;
@@ -650,7 +698,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     var s = SOURCES.filter(function (x) { return x.id === p.src; })[0];
     if (p.src === 'spotify') lastSpPl = p;
     if (method) return sendCmd({ type: 'play', src: p.src, link: p.link, name: p.name, method: method }, 'Uji cara "' + method + '" untuk "' + p.name + '"');
-    sendCmd({ type: 'play', src: p.src, link: p.link, name: p.name }, 'Memutar "' + p.name + '" di ' + s.label);
+    sendCmd({ type: 'play', src: p.src, link: p.link, name: p.name }, p.src === 'radio' ? 'Memutar ' + p.name : 'Memutar "' + p.name + '" di ' + s.label);
   }
 
   function savePl(andPlay) {
@@ -658,13 +706,14 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     var link = $('plLink').value.trim();
     var name = $('plName').value.trim();
     if (!/^https?:\/\/|^spotify:/.test(link)) { toast('Tempel link yang diawali https://', 'bad'); return; }
-    if (!name) name = 'Playlist ' + (Object.keys(playlists).length + 1);
+    if (curSrc === 'radio' && /^https?:\/\/(www\.)?(youtube|youtu\.be|open\.spotify|music\.youtube)/.test(link)) { toast('Untuk YouTube/Spotify pakai tab sumbernya sendiri', 'bad'); return; }
+    if (!name) name = (curSrc === 'radio' ? 'Radio ' : 'Playlist ') + (Object.keys(playlists).length + 1);
     var id = rid();
     var p = { name: name, link: link, src: curSrc, at: Date.now() };
     playlists[id] = p;
     renderPlaylists();
     fetch(d.db + '/clocks/' + d.k + '/playlists/' + id + '.json', { method: 'PUT', body: JSON.stringify(p) })
-      .then(function () { if (!andPlay) toast('Playlist disimpan', 'ok'); })
+      .then(function () { if (!andPlay) toast(curSrc === 'radio' ? 'Stasiun disimpan' : 'Playlist disimpan', 'ok'); })
       .catch(function () { toast('Gagal menyimpan playlist', 'bad'); });
     $('plLink').value = ''; $('plName').value = '';
     $('addPl').open = false;
@@ -794,10 +843,11 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   }
 
   // ---------------------------------------------------------------- events
-  $('prevBtn').addEventListener('click', function () { sendCmd({ type: 'media', cmd: 'prev' }, 'Lagu sebelumnya'); });
-  $('nextBtn').addEventListener('click', function () { sendCmd({ type: 'media', cmd: 'next' }, 'Lagu berikutnya'); });
+  function onRadio() { return now && now.want === 'radio'; }
+  $('prevBtn').addEventListener('click', function () { if (onRadio() && radioStep(-1)) return; sendCmd({ type: 'media', cmd: 'prev' }, 'Lagu sebelumnya'); });
+  $('nextBtn').addEventListener('click', function () { if (onRadio() && radioStep(1)) return; sendCmd({ type: 'media', cmd: 'next' }, 'Lagu berikutnya'); });
   $('ppBtn').addEventListener('click', function () {
-    var playing = now && now.state === 'playing';
+    var playing = now && (now.state === 'playing' || now.state === 'buffering');
     sendCmd({ type: 'media', cmd: playing ? 'pause' : 'play' }, playing ? 'Jeda' : 'Putar');
   });
   var volDragging = false, volT = null;
