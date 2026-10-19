@@ -128,6 +128,7 @@ h2 { margin: 0 0 10px 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.
 .toast.ok { background: #1F6B3A; } .toast.bad { background: var(--err); }
 .msg { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.45; }
 .msg.err { color: var(--err); }
+.msg.ok { color: #13803D; }
 .empty { padding: 18px 16px; font-size: 15px; line-height: 1.5; }
 .empty ol { margin: 8px 0 0; padding-left: 20px; }
 details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding: 8px 2px; min-height: 36px; }
@@ -332,6 +333,12 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
           <button class="btn2" data-sp="open">Cara 4: buka lalu play</button>
         </div>
         </div>
+        <div id="copyBox" style="margin-top:8px">
+          <div class="lbl"><b>Salin playlist &amp; stasiun radio ke tablet lain</b> — yang sudah ada di tablet tujuan tidak didobel.</div>
+          <select id="copyTo" class="txt" aria-label="Tablet tujuan"></select>
+          <button class="btn2" id="copyBtn" style="margin-top:6px">Salin ke tablet ini</button>
+          <div class="msg" id="copyMsg"></div>
+        </div>
         <div id="turnBox" style="margin-top:8px">
           <div class="lbl"><b>Server TURN (opsional, untuk kamera)</b> — isi hanya kalau kamera sering gagal tersambung saat HP memakai data seluler. Disimpan di HP ini saja.</div>
           <input class="txt" id="turnUrl" type="text" placeholder="turn:alamat-server:3478" autocomplete="off">
@@ -445,7 +452,66 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     return Math.round(s / 86400) + ' hari lalu';
   }
 
+  // ---------------------------------------------------------------- salin playlist antar tablet
+  function renderCopy() {
+    var d = cur(), sel = $('copyTo');
+    var targets = devices.map(function (x, i) { return { d: x, i: i }; })
+      .filter(function (t) { return t.i !== devices.indexOf(d) && !isLimited(t.d); });
+    var prev = sel.value;
+    sel.innerHTML = '';
+    targets.forEach(function (t) {
+      var o = document.createElement('option');
+      o.value = String(t.i); o.textContent = devName(t.d);
+      sel.appendChild(o);
+    });
+    if (prev && sel.querySelector('option[value="' + prev + '"]')) sel.value = prev;
+    var ok = !!d && !isLimited(d) && targets.length > 0;
+    sel.style.display = ok ? '' : 'none';
+    $('copyBtn').style.display = ok ? '' : 'none';
+    if (!ok && d && !isLimited(d)) { $('copyMsg').textContent = 'Belum ada tablet lain di daftar HP ini (akses penuh).'; $('copyMsg').className = 'msg'; }
+    else if (ok && /Belum ada tablet lain/.test($('copyMsg').textContent)) $('copyMsg').textContent = '';
+  }
+  function plKey(p) { return (p.src || '') + '|' + String(p.link || '').trim().replace(/\/+$/, '').toLowerCase(); }
+  $('copyBtn').addEventListener('click', function () {
+    var from = cur(), to = devices[parseInt($('copyTo').value, 10)];
+    if (!from || !to || to === from) return;
+    var btn = this; btn.disabled = true;
+    $('copyMsg').className = 'msg'; $('copyMsg').textContent = 'Menyalin…';
+    Promise.all([
+      fetch(url(from, 'playlists')).then(function (r) { return r.json(); }),
+      fetch(url(to, 'playlists')).then(function (r) { return r.json(); })
+    ]).then(function (res) {
+      var src = res[0] || {}, dst = res[1] || {};
+      var have = {};
+      Object.keys(dst).forEach(function (k) { if (dst[k] && dst[k].src) have[plKey(dst[k])] = 1; });
+      var batch = {}, n = 0, skip = 0, t = Date.now();
+      Object.keys(src).filter(function (k) { return src[k] && src[k].src && src[k].link; })
+        .sort(function (a, b) { return (src[a].at || 0) - (src[b].at || 0); })
+        .forEach(function (k) {
+          var p = src[k];
+          if (have[plKey(p)]) { skip++; return; }
+          have[plKey(p)] = 1;
+          var q = { name: p.name, link: p.link, src: p.src, at: t + n };
+          if (p.logo) q.logo = p.logo;
+          batch['c' + n + '_' + rid().substr(0, 6)] = q;
+          n++;
+        });
+      batch._radioSeeded = { at: t };   // stasiun bawaan tidak ditambahkan lagi di tablet tujuan
+      return fetch(to.db + '/clocks/' + to.k + '/playlists.json', { method: 'POST', headers: { 'X-HTTP-Method-Override': 'PATCH' }, body: JSON.stringify(batch) })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          var msg = n ? n + ' playlist/stasiun disalin ke ' + devName(to) : 'Tidak ada yang baru — semua sudah ada di ' + devName(to);
+          if (n && skip) msg += ' (' + skip + ' sudah ada, dilewati)';
+          $('copyMsg').className = 'msg ok'; $('copyMsg').textContent = msg;
+          toast(msg, 'ok');
+        });
+    }).catch(function (e) {
+      $('copyMsg').className = 'msg err'; $('copyMsg').textContent = 'Gagal menyalin: ' + e.message;
+    }).then(function () { btn.disabled = false; });
+  });
+
   function renderDevices() {
+    setTimeout(renderCopy, 0);
     var has = devices.length > 0;
     $('emptyBox').classList.toggle('hidden', has);
     $('devSection').classList.toggle('hidden', !has);
@@ -509,7 +575,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   function applyRole() {
     var lim = isLimited(cur());
-    ['musicSec', 'pvSec', 'colorsDet', 'shareBtn', 'checkBox', 'camSec', 'turnBox'].forEach(function (id) { if ($(id)) $(id).classList.toggle('hidden', lim && id !== 'checkBox'); });
+    ['musicSec', 'pvSec', 'colorsDet', 'shareBtn', 'checkBox', 'camSec', 'turnBox', 'copyBox'].forEach(function (id) { if ($(id)) $(id).classList.toggle('hidden', lim && id !== 'checkBox'); });
     $('limitedNote').classList.toggle('hidden', !lim);
     if (lim) $('layoutSec').classList.add('hidden');
     $('manageSpotify').classList.toggle('hidden', lim);
@@ -671,6 +737,8 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   });
   // halaman ditutup / disembunyikan → kamera tablet dimatikan (hemat kuota & privasi)
   document.addEventListener('visibilitychange', function () { if (document.hidden && camPc) camStop(true); });
+  // link tablet lain dibuka di halaman yang sama → muat ulang supaya tablet itu masuk daftar
+  window.addEventListener('hashchange', function () { if (/[#&]k=/.test(location.hash)) location.reload(); });
   window.addEventListener('pagehide', function () { if (camPc) camStop(true); });
   (function () {
     var t = load(TURN_KEY, {}) || {};
