@@ -26,6 +26,7 @@ h2 { margin: 0 0 10px 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.
 .pad { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 
 .devs { display: flex; flex-direction: column; gap: 8px; }
+.devdel { margin-left: 8px; font-size: 12px; font-weight: 600; color: #B42318; border: 1px solid #F1C7C2; border-radius: 8px; padding: 5px 9px; background: #fff; flex-shrink: 0; }
 .dev {
   display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 10px 14px; border-radius: 12px;
   border: 1px solid var(--line); background: var(--white); cursor: pointer; text-align: left; width: 100%;
@@ -420,11 +421,13 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   var curSrc = 'youtube';
 
   // ---------------------------------------------------------------- devices
+  var fromLink = false, autoPicked = false;
   (function fromHash() {
     var h = location.hash.replace(/^#/, '');
     if (!h) return;
     var p = {};
     h.split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) p[kv.substr(0, i)] = decodeURIComponent(kv.substr(i + 1)); });
+    if (p.db && p.k && p.k.length >= 20) fromLink = true;
     if (p.db && p.k && p.k.length >= 20) addDevice(clean(p.db), p.k, p.n || 'Tablet', p.r === 'm' ? 'limited' : 'full');
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
   })();
@@ -519,7 +522,15 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     if (sel >= devices.length) sel = 0;
     var list = $('devList');
     list.innerHTML = '';
-    devices.forEach(function (d, i) {
+    // yang online di atas, sisanya urut terakhir terlihat
+    var order = devices.map(function (d, i) { return i; }).sort(function (a, b) {
+      var sa = statuses[devices[a].k], sb = statuses[devices[b].k];
+      var oa = isOnline(sa) ? 1 : 0, ob = isOnline(sb) ? 1 : 0;
+      if (oa !== ob) return ob - oa;
+      return ((sb && sb.lastSeen) || 0) - ((sa && sa.lastSeen) || 0);
+    });
+    order.forEach(function (i) {
+      var d = devices[i];
       var st = statuses[d.k];
       var online = isOnline(st);
       var b = document.createElement('button');
@@ -531,6 +542,21 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       if (st && typeof st.batt === 'number' && st.batt >= 0) extra = ' · baterai ' + st.batt + '%' + (st.charging ? ' (dicas)' : '');
       b.querySelector('.dstat').textContent = !st ? 'Memeriksa…' : online ? 'Online' + extra : ('Offline' + (st.lastSeen ? ' · terakhir ' + ago(st.lastSeen) : ''));
       b.querySelector('.dcode').textContent = code(d.k);
+      // tablet lama yang tidak pernah online lagi (>1 hari / belum pernah) → bisa langsung dihapus dari daftar
+      if (st && !online && (!st.lastSeen || Date.now() - st.lastSeen > 86400000)) {
+        var x = document.createElement('span');
+        x.className = 'devdel'; x.textContent = 'Hapus'; x.setAttribute('role', 'button');
+        x.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (!confirm('Hapus "' + devName(d) + '" (' + code(d.k) + ') dari daftar di HP ini?\nTablet-nya sendiri tidak terpengaruh.')) return;
+          var curK = (cur() || {}).k;
+          devices.splice(i, 1);
+          sel = Math.max(0, devices.findIndex(function (z) { return z.k === curK; }));
+          store(DEV_KEY, devices); store(SEL_KEY, sel);
+          selectDevice();
+        });
+        b.appendChild(x);
+      }
       b.addEventListener('click', function () { if (sel === i) return; sel = i; store(SEL_KEY, sel); selectDevice(); });
       list.appendChild(b);
     });
@@ -565,12 +591,26 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   }
 
   function refreshStatus() {
+    var left = devices.length;
+    function one() { if (--left === 0) autoPick(); }
     devices.forEach(function (d) {
       fetch(url(d, 'status')).then(function (r) { return r.json(); }).then(function (j) {
         statuses[d.k] = j || {};
-        renderDevices();
-      }).catch(function () { statuses[d.k] = statuses[d.k] || {}; renderDevices(); });
+        renderDevices(); one();
+      }).catch(function () { statuses[d.k] = statuses[d.k] || {}; renderDevices(); one(); });
     });
+  }
+  // saat halaman dibuka: kalau tablet terpilih offline tapi ada tablet lain yang online, pindah otomatis
+  function autoPick() {
+    if (autoPicked) return;
+    autoPicked = true;
+    if (fromLink || isOnline(statuses[(cur() || {}).k])) return;
+    var best = -1;
+    devices.forEach(function (d, i) {
+      if (best < 0 && isOnline(statuses[d.k]) && !isLimited(d)) best = i;
+    });
+    if (best < 0) devices.forEach(function (d, i) { if (best < 0 && isOnline(statuses[d.k])) best = i; });
+    if (best >= 0 && best !== sel) { sel = best; store(SEL_KEY, sel); selectDevice(); toast('Menampilkan ' + devName(devices[sel]) + ' (online)', 'ok'); }
   }
 
   function applyRole() {
