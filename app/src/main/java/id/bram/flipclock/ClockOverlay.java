@@ -202,6 +202,20 @@ class ClockOverlay {
         @JavascriptInterface public boolean hasMediaAccess() { return MediaHelper.get(ctx).hasMediaAccess(); }
         @JavascriptInterface public String ttsStatus() { return MediaHelper.get(ctx).ttsStatus(); }
         @JavascriptInterface public boolean isSpeaking() { return MediaHelper.get(ctx).speaking; }
+
+        /** "auth=…" untuk alamat Firebase (kosong kalau server tidak memakai login). */
+        @JavascriptInterface
+        public String fbAuthQuery(String dbUrl) {
+            String key = FbAuth.apiKeyFor(dbUrl);
+            if (key == null) return "";
+            FbAuth a = FbAuth.get(ctx);
+            String t = a.cachedToken();
+            if (t.isEmpty()) {
+                new Thread(() -> a.token(key)).start();
+                return "";
+            }
+            return "auth=" + t;
+        }
         @JavascriptInterface public boolean camActive() { return CamStreamer.get(ctx).active(); }
 
         /** Info radio untuk tampilan di jam (JSON). */

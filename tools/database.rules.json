@@ -1,0 +1,59 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "clocks": {
+      "$key": {
+        ".read": "$key.length >= 20 && (!root.child('acl').child($key).child('owner').exists() || (auth != null && (auth.uid === root.child('acl').child($key).child('tablet').val() || auth.uid === root.child('acl').child($key).child('owner').val() || (auth.token.email_verified === true && root.child('acl').child($key).child('members').child(auth.token.email.toLowerCase().replace('.', ',')).val() === 'full'))))",
+        ".write": "$key.length >= 20 && (!root.child('acl').child($key).child('owner').exists() || (auth != null && (auth.uid === root.child('acl').child($key).child('tablet').val() || auth.uid === root.child('acl').child($key).child('owner').val() || (auth.token.email_verified === true && root.child('acl').child($key).child('members').child(auth.token.email.toLowerCase().replace('.', ',')).val() === 'full'))))",
+        "status": {
+          ".read": "auth != null && auth.token.email_verified === true && root.child('acl').child($key).child('members').child(auth.token.email.toLowerCase().replace('.', ',')).exists()"
+        },
+        "share": {
+          ".read": "auth != null && auth.token.email_verified === true && root.child('acl').child($key).child('members').child(auth.token.email.toLowerCase().replace('.', ',')).exists()"
+        }
+      }
+    },
+    "acl": {
+      "$key": {
+        ".read": "auth != null && (auth.uid === data.child('owner').val() || auth.uid === data.child('tablet').val())",
+        "tablet": {
+          ".write": "auth != null && $key.length >= 20 && ((((!data.exists()) || data.val() === auth.uid) && newData.val() === auth.uid) || (root.child('acl').child($key).child('owner').val() === auth.uid && !newData.exists()))"
+        },
+        "owner": {
+          ".write": "auth != null && auth.token.email_verified === true && $key.length >= 20 && ((!data.exists() && newData.val() === auth.uid && root.child('clocks').child($key).child('share').exists()) || (data.val() === auth.uid && (!newData.exists() || newData.val() === auth.uid)))"
+        },
+        "ownerEmail": {
+          ".write": "auth != null && (root.child('acl').child($key).child('owner').val() === auth.uid || newData.parent().child('owner').val() === auth.uid)"
+        },
+        "name": {
+          ".write": "auth != null && (root.child('acl').child($key).child('owner').val() === auth.uid || newData.parent().child('owner').val() === auth.uid)"
+        },
+        "members": {
+          ".read": "auth != null && root.child('acl').child($key).child('owner').val() === auth.uid",
+          ".write": "auth != null && root.child('acl').child($key).child('owner').val() === auth.uid"
+        }
+      }
+    },
+    "invites": {
+      "$em": {
+        ".read": "auth != null && auth.token.email_verified === true && auth.token.email.toLowerCase().replace('.', ',') === $em",
+        "$key": {
+          ".write": "auth != null && root.child('acl').child($key).child('owner').val() === auth.uid"
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "turnamen": {
+      "$ruang": {
+        ".read": "$ruang.length >= 6",
+        ".write": "$ruang.length >= 6"
+      }
+    }
+  }
+}

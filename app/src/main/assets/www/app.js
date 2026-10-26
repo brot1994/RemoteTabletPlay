@@ -81,6 +81,13 @@
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }
   function dbBase() { return String(S.dbUrl || CFG.FIREBASE_DB_URL || '').trim().replace(/\/+$/, ''); }
+  // alamat Firebase + token login tablet (kalau server memakai login akun)
+  function fb(path) {
+    var u = dbBase() + path;
+    var q = '';
+    try { q = AND && AND.fbAuthQuery ? AND.fbAuthQuery(dbBase()) : ''; } catch (e) { }
+    return q ? u + (u.indexOf('?') >= 0 ? '&' : '?') + q : u;
+  }
   function remotePage() { return String(S.remoteUrl || CFG.REMOTE_PAGE_URL || '').trim(); }
   function devCode() { return (S.key.substr(0, 4) + '-' + S.key.substr(4, 4)).toUpperCase(); }
 
@@ -504,7 +511,7 @@
     stopRemote();
     if (!S.remote || !dbBase()) { setNet('off'); return; }
     setNet('connecting');
-    var url = dbBase() + '/clocks/' + S.key + '/config.json';
+    var url = fb('/clocks/' + S.key + '/config.json');
     try { es = new EventSource(url); } catch (e) { setNet('error'); scheduleRetry(); return; }
 
     function onData(ev, isPatch) {
@@ -574,7 +581,7 @@
     if (!S.remote || !dbBase()) return;
     clearTimeout(pushT);
     pushT = setTimeout(function () {
-      fetch(dbBase() + '/clocks/' + S.key + '/config.json', {
+      fetch(fb('/clocks/' + S.key + '/config.json'), {
         method: 'PUT', body: JSON.stringify(remotePayload())
       }).catch(function () { });
     }, now ? 0 : 900);
@@ -582,7 +589,7 @@
 
   function heartbeat() {
     if (!S.remote || !dbBase()) return;
-    fetch(dbBase() + '/clocks/' + S.key + '/status.json', {
+    fetch(fb('/clocks/' + S.key + '/status.json'), {
       method: 'PUT',
       body: JSON.stringify({
         name: S.name || 'Tablet', lastSeen: { '.sv': 'timestamp' }, ver: '2.0',
@@ -603,7 +610,7 @@
   function startCmdStream() {
     if (!S.remote || !dbBase()) return;
     cmdFirst = true;
-    try { esCmd = new EventSource(dbBase() + '/clocks/' + S.key + '/cmd.json'); } catch (e) { return; }
+    try { esCmd = new EventSource(fb('/clocks/' + S.key + '/cmd.json')); } catch (e) { return; }
     function onCmd(ev) {
       var msg;
       try { msg = JSON.parse(ev.data); } catch (e) { return; }
@@ -629,7 +636,7 @@
 
   function ack(id, res) {
     if (!dbBase()) return;
-    fetch(dbBase() + '/clocks/' + S.key + '/cmdAck.json', {
+    fetch(fb('/clocks/' + S.key + '/cmdAck.json'), {
       method: 'PUT', body: JSON.stringify({ id: id, ok: res.ok, msg: res.msg || '', at: { '.sv': 'timestamp' } })
     }).catch(function () { });
   }
@@ -738,7 +745,7 @@
     now.art = art;
     lastArt = art;
     now.at = { '.sv': 'timestamp' };
-    fetch(dbBase() + '/clocks/' + S.key + '/now.json', { method: 'PUT', body: JSON.stringify(now) }).catch(function () { lastNowKey = ''; });
+    fetch(fb('/clocks/' + S.key + '/now.json'), { method: 'PUT', body: JSON.stringify(now) }).catch(function () { lastNowKey = ''; });
     if (panelOpen) syncMusicPanel();
   }
   setInterval(pollNow, 2500);

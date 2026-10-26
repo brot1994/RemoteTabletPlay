@@ -91,6 +91,14 @@ h2 { margin: 0 0 10px 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.
 .chip button { border: none; background: transparent; font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer; min-height: 40px; }
 .chip .t { padding: 8px 4px 8px 12px; }
 .chip .x { padding: 8px 10px 8px 6px; color: var(--muted); font-size: 15px; }
+.acct { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-top: 12px; }
+.acct .grow { min-width: 0; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.acct .grow b { color: var(--ink); font-weight: 600; }
+.acct .btn { min-height: 40px; padding: 0 14px; font-size: 14px; width: auto; flex-shrink: 0; }
+.gbtn { display: inline-flex; align-items: center; gap: 8px; }
+.mrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.mrow .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mrow .role { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .linkbtn { border: none; background: none; color: var(--ink); text-decoration: underline; font-size: 13px; font-weight: 500; cursor: pointer; padding: 6px 0; align-self: flex-start; min-height: 32px; }
 .btn.danger-solid { background: #B42318; border-color: #B42318; color: #fff; }
 .camwrap { position: relative; background: #111; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; margin-bottom: 10px; }
@@ -144,6 +152,11 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
   <div>
     <h1>Remote Tablet Play</h1>
     <div class="sub">Musik, pesan dan pengumuman untuk tablet — dari mana saja</div>
+    <div class="box acct hidden" id="acctBar">
+      <div class="grow" id="acctTxt">Belum masuk</div>
+      <button class="btn gbtn" id="loginBtn"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Masuk dengan Google</button>
+      <button class="linkbtn hidden" id="logoutBtn">Keluar</button>
+    </div>
   </div>
 
   <div id="emptyBox" class="box empty hidden">
@@ -153,6 +166,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       <li>Buka bagian <b>Remote via internet</b>.</li>
       <li>Scan QR code di sana dengan kamera HP ini. Tablet akan otomatis masuk ke daftar.</li>
     </ol>
+    <div class="lbl" style="margin-top:6px">Tablet sudah dikunci ke akun Google, atau dibagikan ke email kamu? Cukup <b>Masuk dengan Google</b> di atas — tabletnya muncul sendiri.</div>
   </div>
 
   <section id="devSection" class="hidden">
@@ -334,6 +348,23 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
           <button class="btn2" data-sp="open">Cara 4: buka lalu play</button>
         </div>
         </div>
+        <div id="aclBox" style="margin-top:8px">
+          <div class="lbl"><b>Akses akun Google</b></div>
+          <div class="lbl" id="aclInfo">Memeriksa…</div>
+          <button class="btn" id="aclLogin" style="display:none">Masuk dengan Google</button>
+          <button class="btn" id="aclClaim" style="display:none">Kunci tablet ini ke akun saya</button>
+          <div id="aclOwner" style="display:none">
+            <div id="aclMembers"></div>
+            <div class="lbl" style="margin-top:8px">Tambah email Google yang boleh masuk:</div>
+            <input class="txt" id="aclEmail" type="email" placeholder="nama@gmail.com" autocomplete="off" inputmode="email">
+            <div class="two" style="margin-top:6px">
+              <select id="aclRole" class="txt" style="padding:0 10px" aria-label="Jenis akses"><option value="full">Akses penuh</option><option value="msg">Pesan saja</option></select>
+              <button class="btn" id="aclAdd">Tambahkan</button>
+            </div>
+            <button class="linkbtn danger" id="aclRelease" style="margin-top:6px">Lepas kunci (tablet kembali bisa dibuka siapa saja yang punya link)</button>
+          </div>
+          <div class="msg" id="aclMsg"></div>
+        </div>
         <div id="copyBox" style="margin-top:8px">
           <div class="lbl"><b>Salin playlist &amp; stasiun radio ke tablet lain</b> — yang sudah ada di tablet tujuan tidak didobel.</div>
           <select id="copyTo" class="txt" aria-label="Tablet tujuan"></select>
@@ -370,6 +401,8 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
 (function () {
   'use strict';
@@ -443,7 +476,18 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   function cur() { return devices[sel] || null; }
   function isLimited(d) { return !!d && d.r === 'limited'; }
-  function url(d, part) { return d.db + '/clocks/' + d.k + '/' + part + '.json'; }
+  // ---------------------------------------------------------------- login Google (Firebase Auth)
+  var AUTH_DB = 'https://agi-flipclock-default-rtdb.asia-southeast1.firebasedatabase.app';
+  var FB_CFG = { apiKey: 'AIzaSyDgknK6q-X6vLqtuBD6mgiTIEAArP8D1WE', authDomain: 'agi-flipclock.firebaseapp.com',
+    databaseURL: AUTH_DB, projectId: 'agi-flipclock', appId: '1:241981986299:web:a9168c471261bd82f0675e' };
+  var authUser = null, authTok = '';
+  function authOn(db) { return clean(db) === AUTH_DB; }
+  function fbu(db, path) {
+    var u = clean(db) + path;
+    return authTok && authOn(db) ? u + (u.indexOf('?') >= 0 ? '&' : '?') + 'auth=' + authTok : u;
+  }
+  function emailKey(e) { return String(e || '').trim().toLowerCase().replace(/\./g, ','); }
+  function url(d, part) { return fbu(d.db, '/clocks/' + d.k + '/' + part + '.json'); }
   function devName(d) { var st = statuses[d.k]; return (st && st.name) || d.n || 'Tablet'; }
   function isOnline(st) { return st && st.lastSeen && (Date.now() - st.lastSeen < 150000); }
 
@@ -500,7 +544,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
           n++;
         });
       batch._radioSeeded = { at: t };   // stasiun bawaan tidak ditambahkan lagi di tablet tujuan
-      return fetch(to.db + '/clocks/' + to.k + '/playlists.json', { method: 'POST', headers: { 'X-HTTP-Method-Override': 'PATCH' }, body: JSON.stringify(batch) })
+      return fetch(fbu(to.db, '/clocks/' + to.k + '/playlists.json'), { method: 'POST', headers: { 'X-HTTP-Method-Override': 'PATCH' }, body: JSON.stringify(batch) })
         .then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
           var msg = n ? n + ' playlist/stasiun disalin ke ' + devName(to) : 'Tidak ada yang baru — semua sudah ada di ' + devName(to);
@@ -540,10 +584,10 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       b.querySelector('.dname').textContent = devName(d) + (isLimited(d) ? ' · pesan saja' : '');
       var extra = '';
       if (st && typeof st.batt === 'number' && st.batt >= 0) extra = ' · baterai ' + st.batt + '%' + (st.charging ? ' (dicas)' : '');
-      b.querySelector('.dstat').textContent = !st ? 'Memeriksa…' : online ? 'Online' + extra : ('Offline' + (st.lastSeen ? ' · terakhir ' + ago(st.lastSeen) : ''));
+      b.querySelector('.dstat').textContent = !st ? 'Memeriksa…' : st.denied ? (authUser ? 'Akun ini tidak diizinkan' : 'Terkunci — masuk dengan Google') : online ? 'Online' + extra : ('Offline' + (st.lastSeen ? ' · terakhir ' + ago(st.lastSeen) : ''));
       b.querySelector('.dcode').textContent = code(d.k);
       // tablet lama yang tidak pernah online lagi (>1 hari / belum pernah) → bisa langsung dihapus dari daftar
-      if (st && !online && (!st.lastSeen || Date.now() - st.lastSeen > 86400000)) {
+      if (st && !online && !st.denied && (!st.lastSeen || Date.now() - st.lastSeen > 86400000)) {
         var x = document.createElement('span');
         x.className = 'devdel'; x.textContent = 'Hapus'; x.setAttribute('role', 'button');
         x.addEventListener('click', function (ev) {
@@ -594,7 +638,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     var left = devices.length;
     function one() { if (--left === 0) autoPick(); }
     devices.forEach(function (d) {
-      fetch(url(d, 'status')).then(function (r) { return r.json(); }).then(function (j) {
+      fetch(url(d, 'status')).then(function (r) { return r.status === 401 ? { denied: true } : r.json(); }).then(function (j) {
         statuses[d.k] = j || {};
         renderDevices(); one();
       }).catch(function () { statuses[d.k] = statuses[d.k] || {}; renderDevices(); one(); });
@@ -615,7 +659,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   function applyRole() {
     var lim = isLimited(cur());
-    ['musicSec', 'pvSec', 'colorsDet', 'shareBtn', 'checkBox', 'camSec', 'turnBox', 'copyBox'].forEach(function (id) { if ($(id)) $(id).classList.toggle('hidden', lim && id !== 'checkBox'); });
+    ['musicSec', 'pvSec', 'colorsDet', 'shareBtn', 'checkBox', 'camSec', 'turnBox', 'copyBox', 'aclBox'].forEach(function (id) { if ($(id)) $(id).classList.toggle('hidden', lim && id !== 'checkBox'); });
     $('limitedNote').classList.toggle('hidden', !lim);
     if (lim) $('layoutSec').classList.add('hidden');
     $('manageSpotify').classList.toggle('hidden', lim);
@@ -623,6 +667,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
 
   function selectDevice() {
     camStop(false);
+    setTimeout(renderAcl, 0);
     now = null; playlists = {};
     if ($('shareBox')) $('shareBox').classList.add('hidden');
     applyRole();
@@ -790,6 +835,212 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     ['turnUrl', 'turnUser', 'turnPass'].forEach(function (id) { $(id).addEventListener('change', saveTurn); });
   })();
 
+  // ---------------------------------------------------------------- akun Google: masuk, tablet milik/undangan, kunci & izin per email
+  var aclState = {};   // k → { owner: {uid,email} | null, members: {} }
+  function renderAcct() {
+    var bar = $('acctBar');
+    if (!window.firebase) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    $('acctTxt').innerHTML = '';
+    if (authUser) {
+      var b = document.createElement('b'); b.textContent = authUser.email || 'Akun Google';
+      $('acctTxt').appendChild(document.createTextNode('Masuk sebagai ')); $('acctTxt').appendChild(b);
+    } else $('acctTxt').textContent = 'Masuk untuk melihat tablet milikmu / yang dibagikan ke kamu';
+    $('loginBtn').classList.toggle('hidden', !!authUser);
+    $('logoutBtn').classList.toggle('hidden', !authUser);
+  }
+  function login() {
+    if (!window.firebase) { toast('Login Google tidak tersedia (cek koneksi)', 'bad'); return; }
+    var prov = new firebase.auth.GoogleAuthProvider();
+    prov.setCustomParameters({ prompt: 'select_account' });
+    firebase.auth().signInWithPopup(prov).catch(function (e) {
+      if (e && /popup-blocked|operation-not-supported/.test(e.code || '')) return firebase.auth().signInWithRedirect(prov);
+      if (e && /popup-closed|cancelled-popup/.test(e.code || '')) return;
+      toast('Gagal masuk: ' + (e && e.message ? e.message : e), 'bad');
+    });
+  }
+  function addDeviceQuiet(db, key, name, role, via) {
+    for (var i = 0; i < devices.length; i++) if (devices[i].k === key) { if (role) devices[i].r = role; if (via) devices[i].via = via; return false; }
+    var d = { db: db, k: key, n: name || 'Tablet', r: role || 'full' };
+    if (via) d.via = via;
+    devices.push(d);
+    return true;
+  }
+  // tablet milik akun ini + undangan ke email ini → masuk daftar otomatis
+  function loadMyTablets() {
+    if (!authUser) return;
+    var uid = authUser.uid, ek = emailKey(authUser.email);
+    var hadNone = devices.length === 0;
+    Promise.all([
+      fetch(fbu(AUTH_DB, '/users/' + uid + '/tablets.json')).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      fetch(fbu(AUTH_DB, '/invites/' + encodeURIComponent(ek) + '.json')).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (res) {
+      var mine = res[0] || {}, inv = res[1] || {}, added = 0, waits = [];
+      Object.keys(mine).forEach(function (k) { var t = mine[k] || {}; if (addDeviceQuiet(t.db || AUTH_DB, k, t.name, 'full')) added++; });
+      Object.keys(inv).forEach(function (k) {
+        var t = inv[k] || {}, db = t.db || AUTH_DB;
+        if (t.role === 'msg') {
+          waits.push(fetch(fbu(db, '/clocks/' + k + '/share.json')).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+            if (j && j.limitedKey && addDeviceQuiet(db, j.limitedKey, t.name, 'limited', t.owner)) added++;
+          }).catch(function () { }));
+        } else if (addDeviceQuiet(db, k, t.name, 'full', t.owner)) added++;
+      });
+      return Promise.all(waits).then(function () {
+        store(DEV_KEY, devices);
+        if (added) toast(added + ' tablet dari akun ' + authUser.email + ' ditambahkan', 'ok');
+        if (hadNone && devices.length) { sel = 0; store(SEL_KEY, sel); }
+        autoPicked = false;
+        selectDevice();
+      });
+    });
+  }
+  function aclMsg(t, kind) { $('aclMsg').textContent = t || ''; $('aclMsg').className = 'msg' + (kind ? ' ' + kind : ''); }
+  function renderAcl() {
+    var d = cur();
+    var box = $('aclBox');
+    if (!d || isLimited(d) || !authOn(d.db) || !window.firebase) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    ['aclLogin', 'aclClaim', 'aclOwner'].forEach(function (id) { $(id).style.display = 'none'; });
+    aclMsg('');
+    var k = d.k;
+    fetch(url(d, 'ownerInfo')).then(function (r) { return r.status === 401 ? { _denied: true } : r.json(); }).then(function (o) {
+      if (cur() !== d) return;
+      if (o && o._denied) {
+        $('aclInfo').textContent = authUser ? 'Tablet ini dikunci ke akun Google lain. Minta pemiliknya menambahkan ' + authUser.email + '.' : 'Tablet ini dikunci ke akun Google. Masuk dengan akun yang diizinkan.';
+        $('aclLogin').style.display = authUser ? 'none' : '';
+        return;
+      }
+      aclState[k] = { owner: o && o.uid ? o : null, members: {} };
+      var st = statuses[k] || {};
+      if (!o || !o.uid) {
+        $('aclInfo').innerHTML = 'Tablet ini <b>belum dikunci</b>: siapa pun yang punya link-nya bisa membuka. Kunci ke akun Google-mu supaya hanya kamu dan email yang kamu izinkan yang bisa masuk (link "pesan saja" tetap jalan).';
+        if (!authUser) { $('aclLogin').style.display = ''; return; }
+        var showClaim = function (ver) {
+          if (cur() !== d) return;
+          if (!ver || ver < '3.0') { aclMsg('Perbarui aplikasi di tablet ke v2.0 dulu (dan pastikan online), baru bisa dikunci.', 'err'); return; }
+          $('aclClaim').style.display = '';
+          $('aclClaim').textContent = 'Kunci tablet ini ke ' + authUser.email;
+        };
+        if (st.ver) showClaim(st.ver);
+        else fetch(url(d, 'status')).then(function (r) { return r.json(); }).then(function (j) { showClaim(j && j.ver); }).catch(function () { showClaim(null); });
+        return;
+      }
+      if (authUser && o.uid === authUser.uid) {
+        $('aclInfo').innerHTML = 'Dikunci ke akunmu (<b></b>). Hanya kamu dan email di bawah ini yang bisa membuka tablet ini.';
+        $('aclInfo').querySelector('b').textContent = o.email || '';
+        $('aclOwner').style.display = '';
+        loadMembers(d);
+      } else {
+        $('aclInfo').innerHTML = 'Dikunci oleh <b></b>. Kamu masuk karena diizinkan pemiliknya.';
+        $('aclInfo').querySelector('b').textContent = o.email || 'pemilik';
+      }
+    }).catch(function () { $('aclInfo').textContent = 'Tidak bisa memeriksa (offline?)'; });
+  }
+  function loadMembers(d) {
+    fetch(fbu(d.db, '/acl/' + d.k + '/members.json')).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) {
+      if (cur() !== d) return;
+      m = m || {};
+      if (aclState[d.k]) aclState[d.k].members = m;
+      var box = $('aclMembers'); box.innerHTML = '';
+      var ks = Object.keys(m);
+      if (!ks.length) { var e = document.createElement('div'); e.className = 'lbl'; e.textContent = 'Belum ada email lain yang diizinkan.'; box.appendChild(e); return; }
+      ks.forEach(function (ek) {
+        var row = document.createElement('div'); row.className = 'mrow';
+        row.innerHTML = '<span class="grow"></span><span class="role"></span><button class="linkbtn danger">Cabut</button>';
+        row.querySelector('.grow').textContent = ek.replace(/,/g, '.');
+        row.querySelector('.role').textContent = m[ek] === 'msg' ? 'Pesan saja' : 'Akses penuh';
+        row.querySelector('button').addEventListener('click', function () {
+          if (!confirm('Cabut akses ' + ek.replace(/,/g, '.') + '?')) return;
+          Promise.all([
+            fetch(fbu(d.db, '/acl/' + d.k + '/members/' + encodeURIComponent(ek) + '.json'), { method: 'DELETE' }),
+            fetch(fbu(d.db, '/invites/' + encodeURIComponent(ek) + '/' + d.k + '.json'), { method: 'DELETE' })
+          ]).then(function () { toast('Akses dicabut', 'ok'); loadMembers(d); }).catch(function () { toast('Gagal mencabut', 'bad'); });
+        });
+        box.appendChild(row);
+      });
+    });
+  }
+  function jfetch(u, method, body) {
+    return fetch(u, { method: method, body: body === undefined ? undefined : JSON.stringify(body), headers: method === 'PATCH' ? { 'X-HTTP-Method-Override': 'PATCH' } : undefined })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r; });
+  }
+  function patch(u, body) { return fetch(u, { method: 'POST', headers: { 'X-HTTP-Method-Override': 'PATCH' }, body: JSON.stringify(body) }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r; }); }
+  $('aclLogin').addEventListener('click', login);
+  $('aclClaim').addEventListener('click', function () {
+    var d = cur(); if (!d || !authUser) return;
+    if (!confirm('Kunci "' + devName(d) + '" ke ' + authUser.email + '?\n\nSetelah dikunci, link akses penuh yang pernah dibagikan tidak bisa dipakai lagi tanpa login akun yang kamu izinkan.')) return;
+    var btn = this; btn.disabled = true; aclMsg('Mengunci…');
+    var name = devName(d);
+    patch(fbu(d.db, '/acl/' + d.k + '.json'), { owner: authUser.uid, ownerEmail: authUser.email, name: name })
+      .then(function () { return fetch(fbu(d.db, '/acl/' + d.k + '/tablet.json')).then(function (r) { return r.ok ? r.json() : null; }); })
+      .then(function (tab) {
+        if (!tab) {
+          // tablet belum terdaftar → batalkan supaya tablet tidak terkunci di luar
+          return patch(fbu(d.db, '/acl/' + d.k + '.json'), { ownerEmail: null, name: null }).then(function () {
+            return jfetch(fbu(d.db, '/acl/' + d.k + '/owner.json'), 'DELETE');
+          }).then(function () { throw new Error('Tablet belum terdaftar. Pastikan tablet v2.0 online, tunggu 1 menit, lalu coba lagi.'); });
+        }
+        return Promise.all([
+          jfetch(url(d, 'ownerInfo'), 'PUT', { uid: authUser.uid, email: authUser.email, at: { '.sv': 'timestamp' } }),
+          jfetch(fbu(d.db, '/users/' + authUser.uid + '/tablets/' + d.k + '.json'), 'PUT', { name: name, db: d.db, at: { '.sv': 'timestamp' } })
+        ]);
+      })
+      .then(function () { toast('Tablet dikunci ke akunmu', 'ok'); renderAcl(); })
+      .catch(function (e) { aclMsg('Gagal mengunci: ' + e.message, 'err'); })
+      .then(function () { btn.disabled = false; });
+  });
+  $('aclAdd').addEventListener('click', function () {
+    var d = cur(); if (!d || !authUser) return;
+    var em = $('aclEmail').value.trim().toLowerCase(), role = $('aclRole').value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { aclMsg('Tulis alamat email yang benar', 'err'); return; }
+    if (em === String(authUser.email).toLowerCase()) { aclMsg('Itu akunmu sendiri', 'err'); return; }
+    var ek = emailKey(em), btn = this; btn.disabled = true;
+    Promise.all([
+      jfetch(fbu(d.db, '/acl/' + d.k + '/members/' + encodeURIComponent(ek) + '.json'), 'PUT', role),
+      jfetch(fbu(d.db, '/invites/' + encodeURIComponent(ek) + '/' + d.k + '.json'), 'PUT', { role: role, name: devName(d), db: d.db, owner: authUser.email, at: { '.sv': 'timestamp' } })
+    ]).then(function () {
+      $('aclEmail').value = '';
+      aclMsg(em + ' sekarang bisa masuk (' + (role === 'msg' ? 'pesan saja' : 'akses penuh') + '). Minta dia buka halaman remote dan Masuk dengan Google.', 'ok');
+      loadMembers(d);
+    }).catch(function (e) { aclMsg('Gagal menambahkan: ' + e.message, 'err'); }).then(function () { btn.disabled = false; });
+  });
+  $('aclRelease').addEventListener('click', function () {
+    var d = cur(); if (!d || !authUser) return;
+    if (!confirm('Lepas kunci "' + devName(d) + '"?\nSemua email yang diizinkan dihapus, dan tablet kembali bisa dibuka siapa saja yang punya link-nya.')) return;
+    var m = (aclState[d.k] && aclState[d.k].members) || {};
+    var jobs = Object.keys(m).map(function (ek) { return fetch(fbu(d.db, '/invites/' + encodeURIComponent(ek) + '/' + d.k + '.json'), { method: 'DELETE' }); });
+    Promise.all(jobs)
+      .then(function () { return jfetch(url(d, 'ownerInfo'), 'DELETE'); })
+      .then(function () { return jfetch(fbu(d.db, '/users/' + authUser.uid + '/tablets/' + d.k + '.json'), 'DELETE'); })
+      .then(function () { return patch(fbu(d.db, '/acl/' + d.k + '.json'), { members: null, ownerEmail: null, name: null }); })
+      .then(function () { return jfetch(fbu(d.db, '/acl/' + d.k + '/owner.json'), 'DELETE'); })
+      .then(function () { toast('Kunci dilepas', 'ok'); renderAcl(); })
+      .catch(function (e) { aclMsg('Gagal: ' + e.message, 'err'); });
+  });
+  $('loginBtn').addEventListener('click', login);
+  $('logoutBtn').addEventListener('click', function () { if (window.firebase) firebase.auth().signOut(); });
+  if (window.firebase) {
+    try {
+      firebase.initializeApp(FB_CFG);
+      var firstAuth = true;
+      firebase.auth().onIdTokenChanged(function (u) {
+        var wasUser = authUser ? authUser.uid : null;
+        authUser = u || null;
+        var done = function () {
+          renderAcct();
+          var changedUser = (authUser ? authUser.uid : null) !== wasUser;
+          if (authUser && changedUser) loadMyTablets();
+          else if (changedUser || firstAuth) { selectDevice(); }
+          else if (nowES) listenNow();   // token diperbarui → sambung ulang dengan token baru
+          firstAuth = false;
+        };
+        if (!u) { authTok = ''; done(); return; }
+        u.getIdToken().then(function (t) { authTok = t; done(); }).catch(function () { done(); });
+      });
+    } catch (e) { }
+  }
+  renderAcct();
+
   // ---------------------------------------------------------------- toast & commands
   var toastT = null;
   function toast(text, kind) {
@@ -849,6 +1100,8 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (m && m.data && now) { for (var k in m.data) now[k] = m.data[k]; renderNow(); renderChecks(); }
     });
+    nowES.addEventListener('auth_revoked', function () { setTimeout(listenNow, 1500); });
+    nowES.addEventListener('cancel', function () { if (nowES) { try { nowES.close(); } catch (e) { } nowES = null; } });
   }
 
   var srcTouched = false;
@@ -948,7 +1201,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
       batch['r' + i + '_' + rid().substr(0, 6)] = p;
     });
     for (var k in batch) playlists[k] = batch[k];
-    fetch(d.db + '/clocks/' + d.k + '/playlists.json', { method: 'POST', headers: { 'X-HTTP-Method-Override': 'PATCH' }, body: JSON.stringify(batch) }).catch(function () { });
+    fetch(fbu(d.db, '/clocks/' + d.k + '/playlists.json'), { method: 'POST', headers: { 'X-HTTP-Method-Override': 'PATCH' }, body: JSON.stringify(batch) }).catch(function () { });
   }
   function radioList() {
     return Object.keys(playlists).filter(function (k) { return playlists[k] && playlists[k].src === 'radio'; })
@@ -990,7 +1243,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
         if (!confirm('Hapus "' + p.name + '" dari daftar?')) return;
         var d = cur();
         delete playlists[id]; renderPlaylists();
-        fetch(d.db + '/clocks/' + d.k + '/playlists/' + id + '.json', { method: 'DELETE' }).catch(function () { });
+        fetch(fbu(d.db, '/clocks/' + d.k + '/playlists/' + id + '.json'), { method: 'DELETE' }).catch(function () { });
       });
       box.appendChild(row);
     });
@@ -1015,7 +1268,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     var p = { name: name, link: link, src: curSrc, at: Date.now() };
     playlists[id] = p;
     renderPlaylists();
-    fetch(d.db + '/clocks/' + d.k + '/playlists/' + id + '.json', { method: 'PUT', body: JSON.stringify(p) })
+    fetch(fbu(d.db, '/clocks/' + d.k + '/playlists/' + id + '.json'), { method: 'PUT', body: JSON.stringify(p) })
       .then(function () { if (!andPlay) toast(curSrc === 'radio' ? 'Stasiun disimpan' : 'Playlist disimpan', 'ok'); })
       .catch(function () { toast('Gagal menyimpan playlist', 'bad'); });
     $('plLink').value = ''; $('plName').value = '';
@@ -1199,7 +1452,12 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); padding
     Array.prototype.forEach.call(document.querySelectorAll('[data-share]'), function (b) { b.classList.toggle('on', b.getAttribute('data-share') === shareMode); });
     $('shareRevoke').classList.toggle('hidden', shareMode !== 'limited');
     if (shareMode === 'full') {
-      $('shareDesc').innerHTML = '<b>Akses penuh:</b> penerima bisa mengganti musik, pesan, warna, tampilan dan membunyikan pengumuman. Kirim hanya ke orang yang dipercaya.';
+      var ow = aclState[d.k] && aclState[d.k].owner;
+      if (ow) {
+        $('shareDesc').innerHTML = '<b>Tablet ini dikunci ke akun Google.</b> Link tanpa login tidak bisa dipakai. Kirim link ini, lalu tambahkan email Google penerima di <b>Kelola tablet ini → Akses akun Google</b>.';
+      } else {
+        $('shareDesc').innerHTML = '<b>Akses penuh:</b> penerima bisa mengganti musik, pesan, warna, tampilan dan membunyikan pengumuman. Kirim hanya ke orang yang dipercaya. Lebih aman: kunci tablet ke akun Google di <b>Kelola tablet ini</b>, lalu izinkan per email.';
+      }
       setShareLink(shareLinkFor(d, d.k, false), 'Akses remote PENUH ' + devName(d) + ' (Tablet Play). Buka link ini, tablet langsung masuk daftar:');
       return;
     }

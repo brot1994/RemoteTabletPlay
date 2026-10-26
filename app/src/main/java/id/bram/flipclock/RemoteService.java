@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
 public class RemoteService extends Service {
 
     static final String CHANNEL = "tabletplay_remote";
-    static final String VER = "2.9";
+    static final String VER = "3.0";
 
     static final String P_ENABLED = "r_enabled";
     static final String P_DB = "r_db";
@@ -246,7 +246,7 @@ public class RemoteService extends Service {
                 HttpURLConnection con = null;
                 try {
                     String k = limited ? limitedKey() : key();
-                    URL u = new URL(pathFor(k, "cmd"));
+                    URL u = new URL(FbAuth.get(RemoteService.this).withAuth(pathFor(k, "cmd")));
                     con = (HttpURLConnection) u.openConnection();
                     con.setRequestProperty("Accept", "text/event-stream");
                     con.setConnectTimeout(15000);
@@ -602,6 +602,8 @@ public class RemoteService extends Service {
 
     private void heartbeat() {
         if (!enabled()) return;
+        final String b = base(), k = key();
+        new Thread(() -> FbAuth.get(RemoteService.this).registerTablet(b, k)).start();
         try {
             JSONObject o = new JSONObject();
             o.put("name", prefs().getString(P_NAME, "Tablet"));
@@ -641,7 +643,7 @@ public class RemoteService extends Service {
         new Thread(() -> {
             HttpURLConnection con = null;
             try {
-                con = (HttpURLConnection) new URL(url).openConnection();
+                con = (HttpURLConnection) new URL(FbAuth.get(RemoteService.this).withAuth(url)).openConnection();
                 con.setRequestMethod("PUT");
                 con.setDoOutput(true);
                 con.setConnectTimeout(15000);
@@ -664,7 +666,7 @@ public class RemoteService extends Service {
         new Thread(() -> {
             HttpURLConnection con = null;
             try {
-                con = (HttpURLConnection) new URL(url).openConnection();
+                con = (HttpURLConnection) new URL(FbAuth.get(RemoteService.this).withAuth(url)).openConnection();
                 con.setRequestMethod("POST");
                 con.setRequestProperty("X-HTTP-Method-Override", "PATCH");
                 con.setDoOutput(true);

@@ -286,6 +286,20 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean isSpeaking() { return media.speaking; }
 
+        /** "auth=…" untuk alamat Firebase (kosong kalau server tidak memakai login). */
+        @JavascriptInterface
+        public String fbAuthQuery(String dbUrl) {
+            String key = FbAuth.apiKeyFor(dbUrl);
+            if (key == null) return "";
+            FbAuth a = FbAuth.get(MainActivity.this);
+            String t = a.cachedToken();
+            if (t.isEmpty()) {
+                new Thread(() -> a.token(key)).start();
+                return "";
+            }
+            return "auth=" + t;
+        }
+
         @JavascriptInterface
         public boolean camActive() { return CamStreamer.get(MainActivity.this).active(); }
 
